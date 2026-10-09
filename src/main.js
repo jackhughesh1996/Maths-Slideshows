@@ -9,13 +9,11 @@ import './styles/base.css';
 import './styles/presentation.css';
 import './styles/teacher-tools.css';
 
-import { getLesson, getAllLessons, groupLessonsHierarchically } from './lessons/index.js';
-import { SlideshowEngine } from './slideshow/engine.js';
+import { lessonCatalog } from './generated/lesson-catalog.js';
+import { groupLessonsHierarchically, getLessonSlideCount } from './lessons/grouping.js';
 import { getLauncherFileName, generateLauncherHtml } from './slideshow/launcher.js';
 import { siteConfig } from '../site.config.js';
 import { openTeacherTools } from './tools/teacherToolsModal.js';
-
-let activeEngine = null;
 
 // Persistent collapsed folder state during browsing session
 const collapsedFolderKeys = new Set();
@@ -37,18 +35,27 @@ function escapeHtml(str) {
 }
 
 /**
- * Navigate to a specific lesson or library by updating URL and triggering render.
- * @param {string|null} lessonId
+ * Construct the static URL for a lesson relative to the library root.
+ * Supports both root domain and subpath deployments (e.g. GitHub Pages).
+ * Handles trailing-slash URLs, omitted slashes, and explicit index.html.
+ * @param {string} lessonId
+ * @returns {string}
  */
-export function navigateTo(lessonId) {
-  const url = new URL(window.location.href);
-  if (lessonId) {
-    url.searchParams.set('lesson', lessonId);
-  } else {
-    url.searchParams.delete('lesson');
+export function getLessonUrl(lessonId) {
+  let basePath = window.location.pathname;
+  if (basePath.endsWith('/index.html')) {
+    basePath = basePath.slice(0, -'index.html'.length);
+  } else if (!basePath.endsWith('/')) {
+    if (/\.[a-zA-Z0-9]+$/.test(basePath)) {
+      basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+    } else {
+      basePath += '/';
+    }
   }
-  window.history.pushState({}, '', url.toString());
-  renderApp();
+  if (!basePath.endsWith('/')) {
+    basePath += '/';
+  }
+  return `${basePath}lessons/${encodeURIComponent(lessonId)}/`;
 }
 
 /**
@@ -96,8 +103,9 @@ function buildTreeHtml(allLessons, searchQuery) {
                 .map((t) => `<span class="topic-pill">${escapeHtml(t)}</span>`)
                 .join('');
 
-              const slideCount = (lesson.slides || []).length;
+              const slideCount = getLessonSlideCount(lesson);
               const launcherFileName = getLauncherFileName(lesson);
+              const lessonUrl = getLessonUrl(lesson.id);
 
               return `
                 <div class="lesson-row" data-lesson-id="${escapeHtml(lesson.id)}">
@@ -122,7 +130,7 @@ function buildTreeHtml(allLessons, searchQuery) {
                         </svg>
                         Download launcher
                       </button>
-                      <a href="?lesson=${encodeURIComponent(lesson.id)}" class="btn btn-sm btn-primary btn-open-lesson" data-lesson-id="${escapeHtml(lesson.id)}">
+                      <a href="${escapeHtml(lessonUrl)}" class="btn btn-sm btn-primary btn-open-lesson" data-lesson-id="${escapeHtml(lesson.id)}">
                         Open Lesson ▶
                       </a>
                     </div>
@@ -191,12 +199,7 @@ function buildTreeHtml(allLessons, searchQuery) {
  * @param {HTMLElement} appEl
  */
 function renderLibraryView(appEl) {
-  if (activeEngine) {
-    activeEngine.destroy();
-    activeEngine = null;
-  }
-
-  const allLessons = getAllLessons();
+  const allLessons = lessonCatalog;
 
   appEl.innerHTML = `
     <div class="library-view">
@@ -386,12 +389,13 @@ function renderLibraryView(appEl) {
       e.preventDefault();
       e.stopPropagation();
       const lessonId = downloadBtn.getAttribute('data-download-launcher');
-      const lesson = getLesson(lessonId);
+      const lesson = lessonCatalog.find((l) => l.id.toUpperCase() === String(lessonId).toUpperCase());
       if (lesson) {
         const fileName = getLauncherFileName(lesson);
         const originPath = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '');
         const { url: baseUrl } = siteConfig.resolveBaseUrl(originPath);
-        const targetUrl = `${baseUrl}/?lesson=${encodeURIComponent(lesson.id)}`;
+        const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        const targetUrl = new URL(`lessons/${encodeURIComponent(lesson.id)}/`, normalizedBase).href;
         const htmlContent = generateLauncherHtml(lesson, targetUrl);
 
         const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -407,16 +411,23 @@ function renderLibraryView(appEl) {
       return;
     }
 
-    // Lesson row or Launch button click
+    // Open Lesson button click (allow native anchor navigation)
+    const openBtn = e.target.closest('.btn-open-lesson');
+    if (openBtn) {
+      window.removeEventListener('keydown', handleDocKeyDown);
+      return;
+    }
+
+    // Lesson row click (clicking anywhere on the row outside buttons)
     const lessonRow = e.target.closest('[data-lesson-id]');
     if (lessonRow) {
-      // If user clicked an anchor with middle click or Ctrl/Cmd, allow native behavior
+      // If user clicked with ordinary left click without modifier keys, navigate to the static lesson page
       if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
         const lessonId = lessonRow.getAttribute('data-lesson-id');
         if (lessonId) {
           window.removeEventListener('keydown', handleDocKeyDown);
-          navigateTo(lessonId);
+          window.location.assign(getLessonUrl(lessonId));
         }
       }
     }
@@ -452,23 +463,26 @@ function renderLibraryView(appEl) {
 }
 
 /**
- * Main application router based on URL query parameter ?lesson=
+ * Main application router.
+ * Redirects legacy query-parameter routes (?lesson=8E) to static lesson pages (/lessons/8E/).
+ * Falls back to library view for the home page or unknown lesson IDs.
  */
 function renderApp() {
   const appEl = document.getElementById('app');
   if (!appEl) return;
 
   const params = new URLSearchParams(window.location.search);
-  const lessonId = params.get('lesson');
+  const rawLessonId = params.get('lesson');
 
-  if (lessonId) {
-    const lesson = getLesson(lessonId);
-    if (lesson) {
-      if (activeEngine) {
-        activeEngine.destroy();
-        activeEngine = null;
-      }
-      activeEngine = new SlideshowEngine(lesson, appEl);
+  if (rawLessonId) {
+    const normalizedInputId = rawLessonId.trim().toUpperCase();
+    const catalogEntry = lessonCatalog.find(
+      (entry) => entry.id && entry.id.toUpperCase() === normalizedInputId
+    );
+
+    if (catalogEntry) {
+      const destinationUrl = getLessonUrl(catalogEntry.id);
+      window.location.replace(destinationUrl);
       return;
     }
   }

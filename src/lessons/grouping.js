@@ -45,6 +45,24 @@ export function getLessonFolder(lesson) {
 }
 
 /**
+ * Safely resolve slide count for a lesson object or metadata record.
+ * Prefers actual slides.length when a valid slides array exists.
+ * Otherwise uses slideCount if it is a non-negative integer, defaulting to 0.
+ * @param {Object} lesson
+ * @returns {number}
+ */
+export function getLessonSlideCount(lesson) {
+  if (!lesson || typeof lesson !== 'object') return 0;
+  if (Array.isArray(lesson.slides)) {
+    return lesson.slides.length;
+  }
+  if (typeof lesson.slideCount === 'number' && Number.isInteger(lesson.slideCount) && lesson.slideCount >= 0) {
+    return lesson.slideCount;
+  }
+  return 0;
+}
+
+/**
  * Generate a slug identifier for a folder.
  * @param {string} course
  * @param {string} folderTitle
@@ -201,7 +219,7 @@ export function groupLessonsHierarchically(lessonsList, searchQuery = '') {
       // Sort lessons within this folder
       const sortedLessons = [...activeLessons].sort(compareLessons);
 
-      const totalSlides = sortedLessons.reduce((sum, l) => sum + (l.slides ? l.slides.length : 0), 0);
+      const totalSlides = sortedLessons.reduce((sum, l) => sum + getLessonSlideCount(l), 0);
 
       folders.push({
         id: getFolderId(courseTitle, folderTitle),

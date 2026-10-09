@@ -583,7 +583,28 @@ export class SlideshowEngine {
 
   exitToLibrary() {
     this.destroy();
-    // Update URL query parameters cleanly
+
+    // Check if mounted in a dedicated static lesson page container
+    const isStaticLessonPage = Boolean(
+      this.container?.getAttribute('data-lesson-id') ||
+      this.container?.closest?.('[data-lesson-id]')
+    );
+
+    if (isStaticLessonPage) {
+      let pathname = window.location.pathname;
+      if (!pathname.endsWith('/')) {
+        if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
+          pathname = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+        } else {
+          pathname += '/';
+        }
+      }
+      const libraryUrl = new URL('../../', new URL(pathname, window.location.origin)).href;
+      window.location.assign(libraryUrl);
+      return;
+    }
+
+    // Legacy single-page app behavior: update URL query parameters cleanly
     const url = new URL(window.location.href);
     url.searchParams.delete('lesson');
     window.history.pushState({}, '', url.toString());

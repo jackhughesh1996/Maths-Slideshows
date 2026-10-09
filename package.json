@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build && node scripts/generate-launchers.js",
+    "dev": "node scripts/generate-lesson-catalog.js && node scripts/generate-lesson-pages.js && vite --port=3000 --host=0.0.0.0",
+    "build": "node scripts/generate-lesson-catalog.js && node scripts/generate-lesson-pages.js && vite build && node scripts/generate-launchers.js",
     "generate-launchers": "node scripts/generate-launchers.js",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
