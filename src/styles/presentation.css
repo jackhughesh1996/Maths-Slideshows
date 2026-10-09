@@ -1,0 +1,1314 @@
+/* ==========================================================================
+   Year 7 Mathematics Slideshows - Presentation View Styling
+   Optimized for classroom interactive whiteboard projection & Chromebooks
+   ========================================================================== */
+
+.presentation-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   TOP HEADER
+   -------------------------------------------------------------------------- */
+.pres-header {
+  height: 52px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-medium);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.pres-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btn-nav-home {
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  color: var(--text-secondary);
+}
+
+.btn-nav-tools {
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  color: var(--text-secondary);
+  border-color: var(--border-medium);
+  background-color: var(--bg-surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-nav-tools:hover {
+  background-color: var(--bg-muted);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.pres-lesson-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pres-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Unobtrusive Teacher Pacing Guide */
+.pres-pacing-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background-color: rgba(248, 250, 252, 0.85);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.pacing-phase-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.pacing-phase-opening {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.pacing-phase-explicit {
+  background-color: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.pacing-phase-guided {
+  background-color: #f3e8ff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
+}
+
+.pacing-phase-independent {
+  background-color: #dcfce7;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.pacing-phase-extension {
+  background-color: #ffedd5;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.pacing-phase-assessment {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.pacing-target-time {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pres-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pres-progress-bar {
+  width: 140px;
+  height: 8px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pres-progress-fill {
+  height: 100%;
+  background-color: var(--primary);
+  width: 0%;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pres-slide-counter {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 64px;
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   STAGE VIEWPORT & DRAWING CANVAS
+   -------------------------------------------------------------------------- */
+.pres-stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 12px 18px;
+}
+
+.pres-slide-viewport {
+  width: 100%;
+  max-width: 1240px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  user-select: text; /* Allow text highlighting on whiteboard */
+}
+
+/* Board Drawing Canvas */
+#drawingCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 15;
+}
+
+body.pen-active #drawingCanvas {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* --------------------------------------------------------------------------
+   SLIDE CONTAINERS & TYPES
+   -------------------------------------------------------------------------- */
+.slide {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.slide.active {
+  display: flex;
+  animation: slideFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideFadeIn {
+  from { opacity: 0.85; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-header {
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.slide-phase-badge {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 3px;
+}
+
+.phase-concept { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+.phase-i-do { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.phase-we-do { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.phase-you-do { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.phase-assess { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+.slide-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.slide-header p.subhead {
+  font-size: 0.94rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.slide-body {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  min-height: 0; /* Prevents overflow in nested flex */
+}
+
+/* Multi-column layout helpers */
+.col-full { flex: 1; min-width: 0; width: 100%; }
+.col-half { flex: 1; min-width: 0; }
+.col-60 { flex: 6; min-width: 0; }
+.col-40 { flex: 4; min-width: 0; }
+.col-third { flex: 1; min-width: 0; }
+
+/* --------------------------------------------------------------------------
+   REUSABLE CONTENT COMPONENTS
+   -------------------------------------------------------------------------- */
+.card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-sm);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card::-webkit-scrollbar-thumb {
+  background-color: var(--border-medium);
+  border-radius: 3px;
+}
+
+.card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-box {
+  background-color: var(--bg-muted);
+  border-left: 4px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.note-box.alert {
+  background-color: #fef2f2;
+  border-left-color: var(--accent-red);
+}
+
+.note-box.gold {
+  background-color: var(--accent-gold-bg);
+  border-left-color: var(--accent-gold);
+}
+
+.note-box.green {
+  background-color: var(--accent-green-bg);
+  border-left-color: var(--accent-green);
+}
+
+.note-box h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.copy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: var(--bg-inset);
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  width: fit-content;
+}
+
+.raw-data-strip {
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+
+/* Inline code formatting */
+code, .inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   KATEX FORMULA STYLING
+   -------------------------------------------------------------------------- */
+.formula-block {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  margin: 6px 0;
+  text-align: center;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
+}
+
+.katex-display {
+  margin: 0.25em 0 !important;
+  font-size: 1.1em !important;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math-error {
+  color: var(--accent-red);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  background: #fee2e2;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   STEM-AND-LEAF PLOT COMPONENT
+   -------------------------------------------------------------------------- */
+.stem-plot-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  margin: 0 auto;
+}
+
+table.stem-plot {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  margin: 0 auto;
+}
+
+table.stem-plot th {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  padding: 3px 10px 5px;
+  border-bottom: 2px solid var(--border-dark);
+  text-transform: uppercase;
+  font-weight: 700;
+  text-align: center;
+}
+
+table.stem-plot td.stem {
+  text-align: right;
+  padding: 3px 10px 3px 6px;
+  font-weight: 700;
+  color: var(--primary);
+  border-right: 2.5px solid var(--border-dark);
+  width: 44px;
+}
+
+table.stem-plot td.leaves {
+  text-align: left;
+  padding: 3px 6px 3px 12px;
+  letter-spacing: 0.45em;
+  color: var(--accent-green);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Back to Back Stem-and-Leaf */
+table.stem-plot td.leaves-left {
+  text-align: right;
+  padding: 3px 12px 3px 6px;
+  letter-spacing: 0.45em;
+  color: var(--accent-rust);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+table.stem-plot td.stem-center {
+  text-align: center;
+  padding: 3px 10px;
+  font-weight: 700;
+  color: var(--primary);
+  border-left: 2.5px solid var(--border-dark);
+  border-right: 2.5px solid var(--border-dark);
+  width: 44px;
+}
+
+.plot-key {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  font-family: var(--font-sans);
+  background-color: var(--bg-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-medium);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   DIVIDED BAR & SECTOR GRAPH SVG COMPONENTS
+   -------------------------------------------------------------------------- */
+.graph-display-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.svg-graph {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   PHYSICAL WHITEBOARD GUIDED PRACTICE & TABLES
+   -------------------------------------------------------------------------- */
+.whiteboard-instruction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.whiteboard-instruction .wb-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.whiteboard-instruction .wb-text {
+  flex: 1;
+}
+
+/* Mathematical and lesson tables */
+.table-container {
+  overflow-x: auto;
+  margin: 6px 0;
+  width: 100%;
+}
+
+table.math-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+table.math-table th {
+  padding: 8px 12px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+table.math-table td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-medium);
+  font-size: 0.98rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+table.math-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+table.math-table tbody tr:hover {
+  background-color: var(--primary-subtle);
+}
+
+/* Progressive Reveals */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  visibility: hidden;
+}
+
+.reveal-item.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+/* SVG Reveal Items: prevent coordinate shifts by disabling translateY */
+svg .reveal-item {
+  transform: none !important;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+svg .reveal-item.is-revealed {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* --------------------------------------------------------------------------
+   MEASURED DIVIDED BAR GRAPH COMPONENT
+   -------------------------------------------------------------------------- */
+.measured-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 4px 0;
+}
+
+.measured-bar-card-header {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.measured-bar-card-header h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.measured-bar-subtitle {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.measured-bar-svg {
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  display: block;
+}
+
+.measured-bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  max-width: 760px;
+}
+
+.measured-bar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.measured-bar-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.measured-bar-check {
+  margin-top: 8px;
+  padding: 8px 14px;
+  background-color: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.measured-bar-check .check-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #166534;
+  background: #dcfce7;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.measured-bar-check .check-equation {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #15803d;
+}
+
+/* --------------------------------------------------------------------------
+   ANIMATED SECTOR GRAPH CONSTRUCTION COMPONENT
+   -------------------------------------------------------------------------- */
+.sector-construction-container {
+  width: 100%;
+  margin: 4px 0;
+}
+
+.sector-construction-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+}
+
+.sector-construction-left {
+  flex: 1 1 54%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sector-construction-right {
+  flex: 0 0 42%;
+  min-width: 310px;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Synchronized Calculation Table */
+table.sector-math-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.sector-math-table th {
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+table.sector-math-table td {
+  padding: 8px 10px;
+  font-size: 0.94rem;
+  transition: background-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.sector-table-row.is-active-category {
+  background-color: #dbeafe !important;
+  box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.sector-table-total-row {
+  background-color: #f8fafc;
+  font-weight: 700;
+  border-top: 2px solid var(--border-medium);
+}
+
+.sector-table-total-row.is-active-category {
+  background-color: #dcfce7 !important;
+  box-shadow: inset 4px 0 0 #16a34a;
+}
+
+.sector-swatch-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Calculation Blank vs Revealed Value */
+.calc-expression-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.calc-expression-wrap .calc-blank-value {
+  display: inline-block;
+  transition: opacity 0.2s ease;
+}
+
+.calc-expression-wrap.has-revealed-answer .calc-blank-value {
+  display: none !important;
+}
+
+.calc-expression-wrap .calc-revealed-value {
+  display: none;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.calc-expression-wrap .calc-revealed-value.is-revealed {
+  display: inline-block !important;
+}
+
+/* Sector Graph SVG Container Card */
+.sector-chart-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+}
+
+.sector-chart-header {
+  margin-bottom: 6px;
+  width: 100%;
+  text-align: center;
+}
+
+.sector-chart-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--primary-border);
+}
+
+.sector-construction-svg {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  display: block;
+}
+
+/* SVG Reveal & Geometric Construction Animation */
+svg .sector-construction-group {
+  transform: none !important;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+svg .sector-wedge {
+  transition: filter 0.25s ease, stroke-width 0.25s ease;
+}
+
+svg .sector-angle-arc {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  transition: stroke-dashoffset 0.4s ease-out;
+}
+
+svg .sector-construction-group.is-revealed .sector-angle-arc {
+  stroke-dashoffset: 0;
+}
+
+svg .sector-radius-line {
+  stroke-dasharray: 180;
+  stroke-dashoffset: 180;
+  transition: stroke-dashoffset 0.35s ease-out;
+}
+
+svg .sector-construction-group.is-revealed .sector-radius-line {
+  stroke-dashoffset: 0;
+}
+
+svg .sector-construction-group.is-active-sector .sector-wedge {
+  filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.6));
+  stroke: #ffffff;
+  stroke-width: 3.5px;
+}
+
+/* Legend & Angle Check Banner */
+.sector-construction-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  justify-content: center;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.sector-legend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  background: var(--bg-muted);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-medium);
+  transition: all 0.2s ease;
+}
+
+.sector-legend-pill.is-active-category {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+
+.sector-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.sector-construction-check {
+  margin-top: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: var(--radius-sm);
+  color: #166534;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.sector-construction-check .check-pill-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #166534;
+  background: #dcfce7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 920px) {
+  .sector-construction-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  .sector-construction-left,
+  .sector-construction-right {
+    width: 100%;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
+/* Teacher Solution Box */
+.solution-container {
+  background-color: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-top: 12px;
+}
+
+.solution-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   BOTTOM CONTROLS BAR
+   -------------------------------------------------------------------------- */
+.pres-footer {
+  height: 56px;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-medium);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.pres-footer-left,
+.pres-footer-center,
+.pres-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   REVEAL-STEP INDICATORS
+   -------------------------------------------------------------------------- */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  user-select: none;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.step-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-dark);
+  background-color: transparent;
+  transition: all 0.15s ease;
+}
+
+.step-dot.filled {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.step-dots.all-complete .step-dot.filled {
+  background-color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.step-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.step-text.complete {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.key-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* Pen Tool Controls */
+.pen-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 3px 6px;
+}
+
+.btn-pen-toggle.active {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+
+.pen-color-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--border-medium);
+  transition: transform 0.1s ease;
+}
+
+.pen-color-btn.active {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   CLASSROOM TIMER & SETUP POPOVER
+   -------------------------------------------------------------------------- */
+.timer-widget {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 3px 8px;
+  position: relative;
+}
+
+.timer-widget.visible {
+  display: flex;
+}
+
+.timer-time {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 56px;
+  text-align: center;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.timer-time:hover {
+  background-color: var(--bg-inset);
+  color: var(--primary);
+}
+
+.timer-time:focus-visible {
+  outline: 2px solid var(--primary);
+}
+
+.timer-time.time-up {
+  color: var(--accent-red);
+  animation: pulseWarning 1s infinite;
+}
+
+@keyframes pulseWarning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.timer-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.84rem;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.timer-btn:hover {
+  background-color: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+.timer-btn-adjust {
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 5px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+}
+
+.timer-btn-adjust:hover {
+  background-color: var(--bg-muted);
+  border-color: var(--border-dark);
+}
+
+/* Timer Setup Popover */
+.timer-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 12px 14px;
+  min-width: 250px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  user-select: none;
+  animation: popoverFadeIn 0.15s ease;
+}
+
+.timer-popover[hidden] {
+  display: none !important;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.timer-popover-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timer-presets-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.timer-preset-btn {
+  padding: 4px 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.timer-custom-form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px;
+}
+
+.timer-custom-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.timer-custom-input {
+  width: 50px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.timer-custom-input:focus {
+  outline: 2px solid var(--primary);
+  border-color: var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE DESIGN (PROJECTION & NARROW SCREENS)
+   -------------------------------------------------------------------------- */
+@media (max-height: 720px) {
+  .pres-header { height: 46px; }
+  .pres-footer { height: 50px; }
+  .slide-header h2 { font-size: 1.4rem; }
+  .card { padding: 12px 16px; }
+  table.stem-plot { font-size: 1.1rem; }
+}
+
+@media (max-width: 960px) {
+  .slide-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .col-60, .col-40, .col-half, .col-third {
+    width: 100%;
+    flex: auto;
+  }
+}
