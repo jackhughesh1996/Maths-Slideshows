@@ -50,23 +50,80 @@ jobs:
         env:
           EXPECTED_BASE_URL: ${{ steps.pages.outputs.base_url }}
         run: |
-          echo "Verifying required production artifacts..."
-          test -f dist/index.html
-          test -f dist/lessons/8E/index.html
-          test -f dist/lessons/8F/index.html
-          test -f dist/downloads/8E-stem-and-leaf-plots.html
-          test -f dist/downloads/8F-sector-graphs-and-divided-bar-graphs.html
+          node -e "
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { lessonCatalog } from './src/generated/lesson-catalog.js';
+          import { getLauncherFileName } from './src/slideshow/launcher.js';
 
-          echo "Verifying launcher destinations do not contain localhost or loopback..."
-          if grep -E -i "localhost|127\.0\.0\.1|::1" dist/downloads/*.html; then
-            echo "Error: Localhost or loopback address found in generated launchers!"
-            exit 1
-          fi
+          const rawBaseUrl = process.env.EXPECTED_BASE_URL;
+          if (!rawBaseUrl || !rawBaseUrl.trim()) {
+            console.error('Error: EXPECTED_BASE_URL environment variable is missing or empty.');
+            process.exit(1);
+          }
 
-          echo "Verifying launchers target configured production site URL..."
-          grep -F "${EXPECTED_BASE_URL}/lessons/8E/" dist/downloads/8E-stem-and-leaf-plots.html
-          grep -F "${EXPECTED_BASE_URL}/lessons/8F/" dist/downloads/8F-sector-graphs-and-divided-bar-graphs.html
-          echo "Build output verification succeeded!"
+          // Normalise trailing slashes for clean URL comparison
+          const normalizedBaseUrl = rawBaseUrl.trim().replace(/\/+$/, '');
+
+          // 1. Verify dist/index.html exists
+          const rootIndex = path.resolve('dist', 'index.html');
+          if (!fs.existsSync(rootIndex)) {
+            console.error('Error: dist/index.html is missing.');
+            process.exit(1);
+          }
+          console.log('✓ Verified dist/index.html');
+
+          // 2. Verify lesson catalogue is not empty
+          if (!Array.isArray(lessonCatalog) || lessonCatalog.length === 0) {
+            console.error('Error: lessonCatalog is empty or not an array.');
+            process.exit(1);
+          }
+
+          console.log(\`Verifying \${lessonCatalog.length} registered lesson(s) against production base URL: \${normalizedBaseUrl}\`);
+
+          let passedCount = 0;
+
+          for (const lesson of lessonCatalog) {
+            if (!lesson || !lesson.id) {
+              console.error('Error: Found invalid lesson record in catalogue without ID.');
+              process.exit(1);
+            }
+
+            const lessonId = lesson.id;
+            const expectedLessonPage = path.resolve('dist', 'lessons', lessonId, 'index.html');
+            if (!fs.existsSync(expectedLessonPage)) {
+              console.error(\`Error: Static lesson page is missing: dist/lessons/\${lessonId}/index.html\`);
+              process.exit(1);
+            }
+
+            const launcherFileName = getLauncherFileName(lesson);
+            const launcherPath = path.resolve('dist', 'downloads', launcherFileName);
+            if (!fs.existsSync(launcherPath)) {
+              console.error(\`Error: Launcher file is missing: dist/downloads/\${launcherFileName}\`);
+              process.exit(1);
+            }
+
+            const launcherContent = fs.readFileSync(launcherPath, 'utf-8');
+
+            // Check no localhost or loopback
+            if (/localhost|127\.0\.0\.1|::1/i.test(launcherContent)) {
+              console.error(\`Error: Launcher for \${lessonId} (\${launcherFileName}) contains localhost or loopback address.\`);
+              process.exit(1);
+            }
+
+            // Verify expected target URL
+            const expectedTargetUrl = \`\${normalizedBaseUrl}/lessons/\${encodeURIComponent(lessonId)}/\`;
+            if (!launcherContent.includes(expectedTargetUrl)) {
+              console.error(\`Error: Launcher for \${lessonId} (\${launcherFileName}) does not target expected production URL: \${expectedTargetUrl}\`);
+              process.exit(1);
+            }
+
+            console.log(\`  ✓ [\${lessonId}] Verified lesson page and launcher -> \${expectedTargetUrl}\`);
+            passedCount++;
+          }
+
+          console.log(\`\nVerification summary: Successfully verified all \${passedCount} of \${lessonCatalog.length} registered lesson(s).\`);
+          "
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

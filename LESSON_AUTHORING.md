@@ -1,6 +1,6 @@
 # Lesson Authoring Guide
 
-This guide explains how a teacher or an AI model can author new Year 7 Mathematics lessons without modifying any slideshow engine code.
+This guide explains how a teacher or an AI model can author new Year 7 Mathematics lessons in the static multi-page slideshow architecture without modifying any slideshow engine code.
 
 ---
 
@@ -9,29 +9,107 @@ This guide explains how a teacher or an AI model can author new Year 7 Mathemati
 To add a new lesson (e.g. `8G: Frequency Tables and Histograms`):
 
 1. **Create the lesson file**: Create `src/lessons/8G.js`.
-2. **Export the lesson configuration object** using the schema below.
-3. **Register the lesson** in `src/lessons/index.js`:
+2. **Export the lesson configuration object** as the default export using the schema described below.
+3. **Register the lesson** in `src/lessons/manifest.js`:
    ```javascript
-   import lesson8G from './8G.js';
-
-   export const lessons = {
-     '8E': lesson8E,
-     '8F': lesson8F,
-     '8G': lesson8G, // Added here
-   };
+   export const lessonManifest = [
+     { id: '8E', path: './8E.js' },
+     { id: '8F', path: './8F.js' },
+     { id: '8G', path: './8G.js' }, // Add new lesson entry here
+   ];
    ```
 
-That is all. The slideshow engine, keyboard navigation, KaTeX math renderer, progressive reveals, board pen, timer, and library view will handle the rest automatically.
+> **⚠️ Important Notice: `src/lessons/index.js` is Obsolete**
+> The old eager registry in `src/lessons/index.js` is obsolete and must **not** be used for new lesson registration.
+> All lessons are registered exclusively via `src/lessons/manifest.js`.
+
+That is all. The automated build pipeline, static page generator, slideshow engine, KaTeX math renderer, progressive reveals, teacher tools, and library view handle everything else automatically. (If your dev server is already running, restart `npm run dev` or run `node scripts/generate-lesson-catalog.js && node scripts/generate-lesson-pages.js` to generate the new lesson's static page and catalogue metadata.)
 
 ---
 
-## 2. Top-Level Lesson Schema & Folder Organisation
+## 2. Multi-Page Architecture & Build Pipeline
+
+The website uses a static multi-page architecture with on-demand module loading:
+
+```text
+maths-slideshows/
+├── index.html                           # Root Library page (metadata only, no eager slide bundles)
+├── lessons/
+│   ├── 8E/index.html                    # Static entry page for Lesson 8E
+│   └── 8F/index.html                    # Static entry page for Lesson 8F
+├── src/
+│   ├── generated/
+│   │   └── lesson-catalog.js            # Build-generated metadata catalogue (titles, topics, counts)
+│   ├── lessons/
+│   │   ├── manifest.js                  # Lesson registry: lists IDs and relative file paths
+│   │   ├── 8E.js                        # Lesson 8E definition (slides, tasks, data)
+│   │   └── 8F.js                        # Lesson 8F definition (slides, tasks, data)
+│   ├── lesson-entry.js                  # Shared entry point for static lesson pages (lazy-loads lesson data)
+│   ├── main.js                          # Root library script and backward-compatible redirect router
+│   └── slideshow/                       # Shared slideshow presentation engine and renderer
+└── scripts/
+    ├── generate-lesson-catalog.js       # Extracts metadata and validates lessons against schema
+    ├── generate-lesson-pages.js         # Generates static HTML pages in lessons/<id>/index.html
+    └── generate-launchers.js            # Generates standalone student HTML redirect launchers
+```
+
+### What Happens Automatically at Build and Dev Time
+
+The scripts in `package.json` define how the generators and bundler interact:
+- **`npm run dev`**: Executes `scripts/generate-lesson-catalog.js` and `scripts/generate-lesson-pages.js` once at startup before starting the Vite dev server. It does **not** run `scripts/generate-launchers.js`.
+- **`npm run build`**: Runs the complete production pipeline: catalogue generation, static page generation, Vite multi-page bundling, and launcher generation (`scripts/generate-launchers.js`).
+
+Here is what each stage does:
+1. **Validation & Metadata Extraction (`scripts/generate-lesson-catalog.js`)**:
+   - Inspects `src/lessons/manifest.js`.
+   - Dynamically imports and validates each registered lesson module using `validateLesson()`.
+   - Verifies that `lesson.id` matches the manifest entry ID.
+   - Extracts lightweight metadata (`id`, `title`, `unit`, `folder`, `topics`, `slideCount`) and writes `src/generated/lesson-catalog.js`.
+   - Runs during `npm run dev` startup and `npm run build`.
+2. **Static Lesson Page Generation (`scripts/generate-lesson-pages.js`)**:
+   - Generates a dedicated static HTML entry page at `lessons/<id>/index.html` for every registered lesson in `src/lessons/manifest.js`.
+   - Mounts `#app` with `data-lesson-id="<id>"` and loads the shared `/src/lesson-entry.js` bundle.
+   - Safely removes obsolete generated lesson pages when lessons are deleted or renamed.
+   - Runs during `npm run dev` startup and `npm run build`.
+3. **Multi-Page Bundling (`vite build`)**:
+   - Compiles the root library (`index.html`) and every static lesson page (`lessons/<id>/index.html`).
+   - The root library bundle remains lightweight: it only loads `lessonCatalog` without loading full slide definitions or KaTeX.
+   - Each static lesson page loads the shared presentation engine and lazily fetches its own lesson bundle on demand.
+   - Runs during `npm run build`. (In development, Vite serves modules on demand).
+4. **Student HTML Launcher Generation (`scripts/generate-launchers.js`)**:
+   - Generates lightweight HTML redirect launchers in `dist/downloads/` and `public/downloads/`.
+   - Runs as part of `npm run build` (or `npm run generate-launchers`), not the normal `npm run dev` command.
+   - **Requires Internet Access**: Launcher HTML files can be opened locally on a student's computer, but they redirect to the hosted website. An active internet connection is required to load and view the slideshow; launchers are not offline copies of the lesson.
+   - In production builds, validates that `SITE_URL` is configured with a valid HTTPS address.
+
+### Canonical Lesson URLs & Backward Compatibility
+
+- **Canonical Static Lesson URL**: `/lessons/<id>/` (e.g. `/lessons/8E/` or `/lessons/8G/`).
+- **Legacy URL Support**: Old query-parameter links (`/?lesson=8E`) are automatically intercepted by `src/main.js` and redirected via `window.location.replace()` to the canonical static URL (`/lessons/8E/`).
+- **Student Launchers**: Both build-generated and browser-downloaded HTML launchers target canonical static URLs (`/lessons/<id>/`). They open in the browser and redirect to the hosted lesson.
+
+### Files to Edit vs Generated Files
+
+| File / Path | Author Action | Purpose |
+| :--- | :--- | :--- |
+| `src/lessons/<id>.js` | **Edit** | Create your lesson slides, worked examples, and content blocks. |
+| `src/lessons/manifest.js` | **Edit** | Register your lesson entry `{ id: '<id>', path: './<id>.js' }`. |
+| `src/lessons/index.js` | **Do Not Edit** | Obsolete legacy registry. Retained only for backwards reference. |
+| `src/generated/lesson-catalog.js` | **Auto-Generated** | Do not edit manually. Re-generated on dev startup and build. |
+| `lessons/<id>/index.html` | **Auto-Generated** | Do not edit manually. Generated by `generate-lesson-pages.js` on dev startup and build. |
+| `dist/` | **Auto-Generated** | Production build output directory. |
+| `public/downloads/*.html` | **Auto-Generated** | Generated student launcher files (created during `npm run build` or `npm run generate-launchers`). |
+| `dist/downloads/*.html` | **Auto-Generated** | Generated student launcher files for production distribution (created during `npm run build`). |
+
+---
+
+## 3. Top-Level Lesson Schema & Folder Organisation
 
 Every lesson file must default-export an object matching this structure:
 
 ```javascript
 export default {
-  id: "8G",                                    // Lesson identifier (used in URL: ?lesson=8G)
+  id: "8G",                                    // Lesson identifier (used in URL: /lessons/8G/)
   title: "Frequency Tables and Histograms",    // Full lesson title
   subject: "Mathematics",                     // Curriculum subject (e.g. "Mathematics")
   yearLevel: 7,                                // Target year level (e.g. 7 or "Year 7")
@@ -48,7 +126,7 @@ export default {
 
 | Field | Type | Required / Recommended | Description | Example |
 | :--- | :--- | :--- | :--- | :--- |
-| `id` | `string` | **Required** | Unique lesson code badge used for URL routing (`?lesson=8G`). Case-insensitive. | `"8E"` |
+| `id` | `string` | **Required** | Unique lesson code badge used for URL routing (`/lessons/8G/`). Case-insensitive. | `"8E"` |
 | `title` | `string` | **Required** | The full, clear descriptive lesson title. | `"Stem-and-Leaf Plots"` |
 | `subject` | `string` | Recommended | Subject domain. Defaults to `"Mathematics"` if omitted. | `"Mathematics"` |
 | `yearLevel` | `number \| string` | Recommended | Target cohort year level. Used to group the course header (e.g. `Year 7 Mathematics`). | `7` or `"Year 7"` |
@@ -79,7 +157,7 @@ Year 7 Mathematics
 
 ---
 
-## 3. Lesson Pacing & Slide Metadata
+## 4. Lesson Pacing & Slide Metadata
 
 These are **60-minute Year 7 Mathematics lessons**. Slides are designed to support active classroom teaching, not to dominate the lesson with passive teacher talk.
 
@@ -118,7 +196,7 @@ Example:
 
 ---
 
-## 4. Supported Slide Types
+## 5. Supported Slide Types
 
 The renderer supports 10 distinct, classroom-focused slide types:
 
@@ -180,7 +258,7 @@ Structured workbook notes (single-column or multi-column layout).
           type: "note-box",
           copyToWorkbook: true, // Shows copy icon banner
           title: "The Stem and The Leaf",
-          text: "• **Stem**: Leading digits.<br>• **Leaf**: Last single digit."
+          text: "• **Stem**: Leading digits.\n• **Leaf**: Last single digit."
         }
       ]
     },
@@ -330,7 +408,7 @@ Recap checklist slide before pack-up.
 
 ---
 
-## 4. Supported Content Blocks
+## 6. Supported Content Blocks
 
 Any slide supporting `blocks` or `content` can use these reusable building blocks:
 
@@ -440,7 +518,7 @@ For guided and independent practice where students draw a divided bar with a phy
 
 ---
 
-## 5. Text Formatting & KaTeX Mathematics Syntax
+## 7. Text Formatting & KaTeX Mathematics Syntax
 
 All text in lesson files (titles, subtitles, prompts, notes, table cells, lists) is rendered through a unified, safe text-rendering engine.
 
@@ -495,7 +573,7 @@ text: "$\\frac{6}{24} \\times 360^\\circ = \\underline{\\hspace{2.5em}}^\\circ$"
 
 ---
 
-## 6. Progressive Reveals & Solutions
+## 8. Progressive Reveals & Solutions
 
 - **No manual step numbers are required.** The slideshow engine automatically detects every revealable step in sequence:
   - In `worked-example` slides, each item in `steps` is revealed one-by-one.
@@ -512,9 +590,9 @@ text: "$\\frac{6}{24} \\times 360^\\circ = \\underline{\\hspace{2.5em}}^\\circ$"
 
 ---
 
-## 7. Complete Example Lesson Definition
+## 9. Complete Example Lesson Definition
 
-Below is a complete, ready-to-use lesson file (`src/lessons/8G_sample.js`):
+Below is a complete, ready-to-use lesson file (`src/lessons/8G.js`):
 
 ```javascript
 export default {
@@ -603,9 +681,9 @@ export default {
 
 ---
 
-## 7. Automated Lesson Schema Validation
+## 10. Automated Lesson Schema Validation
 
-The application includes an automated lightweight schema validator (`validateLesson(lesson)` in `src/slideshow/validator.js`) that runs whenever lessons are loaded or registered.
+The application includes an automated lightweight schema validator (`validateLesson(lesson)` in `src/slideshow/validator.js`) that runs during build time (`generate-lesson-catalog.js`) and runtime (`lesson-entry.js`).
 
 ### What Is Validated
 1. **Core Identity**: Non-empty `id`, `title`, and `slides` array.
@@ -619,3 +697,79 @@ The application includes an automated lightweight schema validator (`validateLes
 7. **Graph Data**: Sector graphs and divided bar graphs require non-empty `items` with `label` and `amount` or `fraction`.
 8. **Schema Drift Detection**: Warns in console about unexpected properties at slide and block levels.
 
+---
+
+## 11. Local Development, Testing & Verification
+
+Use the standard npm scripts defined in `package.json`:
+
+```bash
+# Start local development server (runs catalog and lesson-page generators once, then starts Vite)
+npm run dev
+
+# Run TypeScript type-checker and syntax validator
+npm run lint
+
+# Build production multi-page distribution and launchers (runs generators, Vite build, and launcher generator)
+npm run build
+
+# Generate student HTML launchers separately (optional)
+npm run generate-launchers
+
+# Preview production build locally
+npm run preview
+```
+
+### Local Development Flow
+1. Run `npm run dev`. The startup script generates the catalogue and static lesson HTML pages once, then starts Vite at `http://localhost:3000`.
+2. As you author or edit slide content in `src/lessons/<id>.js`, Vite automatically hot-reloads changes in your browser.
+3. When registering a **new lesson** in `src/lessons/manifest.js` (or renaming an existing one), restart the dev server (`npm run dev`) or explicitly regenerate the files:
+   ```bash
+   node scripts/generate-lesson-catalog.js && node scripts/generate-lesson-pages.js
+   ```
+   Editing `manifest.js` does not automatically trigger the generators on save.
+4. Note that `scripts/generate-launchers.js` runs as part of `npm run build` (or `npm run generate-launchers`), not the normal `npm run dev` command.
+5. Open `http://localhost:3000/lessons/<id>/` in your browser to view your lesson immediately.
+6. Open `http://localhost:3000/` to verify that your lesson appears in the correct folder card, search matches work, and the "Open Lesson ▶" link opens your lesson.
+7. Test legacy redirect: navigate to `http://localhost:3000/?lesson=<id>` and confirm it immediately redirects to `http://localhost:3000/lessons/<id>/`.
+
+---
+
+## 12. Deployment to GitHub Pages
+
+The repository contains a fully automated GitHub Actions deployment workflow in `.github/workflows/deploy.yml`:
+
+- **Automatic Trigger**: Pushing commits to the `main` branch automatically triggers deployment. You can also trigger it manually from GitHub Actions using `workflow_dispatch`.
+- **Workflow Steps**:
+  1. Sets up Node.js 24 and Bun.
+  2. Runs `bun ci` for clean, frozen-lockfile dependency installation.
+  3. Runs `npm run lint` (`tsc --noEmit`) to verify types and syntax.
+  4. Configures GitHub Pages via `actions/configure-pages@v5`, obtaining the canonical base URL (`steps.pages.outputs.base_url`).
+  5. Runs `npm run build` with `SITE_URL` and `REQUIRE_PRODUCTION_SITE_URL=1` to enforce strict production HTTPS URL validation.
+  6. **Automated Verification**: Dynamically iterates over every lesson in `lessonCatalog` and verifies:
+     - `dist/lessons/<id>/index.html` exists.
+     - `dist/downloads/<launcher-file-name>.html` exists.
+     - Launchers point to the deployed GitHub Pages URL without localhost addresses.
+  7. Uploads `dist/` and deploys to GitHub Pages.
+
+Teachers and authors only need to commit their lesson file and manifest entry to `main` — all pages, catalogues, launchers, and verification tests run automatically.
+
+---
+
+## 13. Authoring Checklist for New Lessons
+
+Follow this checklist before pushing a new lesson:
+
+- [ ] **Lesson File Created**: `src/lessons/<id>.js` created with unique `id`, `title`, `unit`, `folder`, and `topics`.
+- [ ] **Default Export**: The lesson file default-exports the configuration object (`export default { ... }`).
+- [ ] **Pacing Respected**: Lesson follows the 60-minute structure; independent practice starts by ~min 20–25.
+- [ ] **No Raw HTML**: Formatted text uses Markdown (`**`, `*`, `` ` ``, `\n`); no raw `<br>` or `<b>` tags.
+- [ ] **KaTeX Formulas Escaped**: All LaTeX backslashes escaped (`\\frac`, `\\times`, `\\circ`); answer blanks use `\underline{\hspace{2.5em}}`.
+- [ ] **Manifest Registered**: Added `{ id: '<id>', path: './<id>.js' }` to `src/lessons/manifest.js` (NOT `src/lessons/index.js`).
+- [ ] **Lint Passed**: `npm run lint` passes without TypeScript or syntax errors.
+- [ ] **Build Passed**: `npm run build` successfully generates the catalogue, static page, bundle, and launcher.
+- [ ] **Browser Verified**:
+  - Direct visit to `/lessons/<id>/` loads slides and whiteboard tools.
+  - Library view at `/` displays the lesson in the correct unit folder with correct slide count.
+  - Legacy `/?lesson=<id>` redirects to `/lessons/<id>/`.
+  - Student launcher download produces a valid HTML file targeting the canonical URL.

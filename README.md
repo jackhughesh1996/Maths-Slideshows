@@ -10,12 +10,16 @@ Built with **vanilla JavaScript**, **semantic HTML**, **CSS**, and locally-bundl
 
 - **Classroom Interactive Board Ready**: Designed specifically for classroom display with high text contrast, dark ink on warm off-white canvas, and no vertical scrolling in presentation mode.
 - **Strict Separation of Engine and Content**: All slideshow behaviours (navigation, progressive reveals, board pen, timer, math rendering) belong to the engine. Lessons are defined as structured data files.
+- **Static Multi-Page Architecture**:
+  - Lightweight course library at `/` displaying lesson cards and metadata without eagerly bundling slideshow data or math engines.
+  - Dedicated static lesson pages at `/lessons/<id>/` (e.g. `/lessons/8E/`).
+  - Lazy-loaded lesson data modules and shared presentation engine on each lesson page.
+  - Full backward-compatibility redirecting legacy `?lesson=<id>` URLs to canonical `/lessons/<id>/` routes.
 - **Local KaTeX Mathematics**: Fully self-contained LaTeX rendering for inline (`$...$`) and display (`$$...$$` or formula blocks) mathematical expressions.
 - **Progressive Reveals**: Spacebar or Right Arrow advances step-by-step through worked examples, guided solutions, and warm-ups. Previous step (`Left Arrow`) steps backward without losing state.
 - **Isolated Board Annotation Pen**: Stylus/touch/mouse drawing layer with Pointer Events. Ink is stored per slide and preserved across window resize and fullscreen toggling.
 - **Classroom Practice Timer**: Configurable countdown timer (e.g. 10 minutes) that automatically pauses when leaving a slide and restores remaining time when returning.
-- **GitHub Pages Portability**: Configured with `base: './'` so it works anywhere—at domain root or inside any repository subpath (e.g., `https://username.github.io/year7-maths/`).
-- **Query Parameter Routing**: Lessons open directly via `?lesson=8E` or `?lesson=8F`, with full browser Back/Forward history support.
+- **GitHub Pages Portability**: Configured with `base: './'` so it works anywhere—at domain root or inside any repository subpath (e.g., `https://username.github.io/year-7-mathematics-slideshows/`).
 - **Teacher Classroom Tools**: Integrated student name picker (with no-repeat pool selection) and balanced team generator (pairs, 3s, 4s, or custom size/count). Saves multiple named classes locally in `localStorage` with CSV and clipboard import; zero cloud/backend storage. Pauses presentation keyboard shortcuts while open.
 
 ---
@@ -23,38 +27,59 @@ Built with **vanilla JavaScript**, **semantic HTML**, **CSS**, and locally-bundl
 ## 2. Getting Started
 
 ### Prerequisites
-Node.js 18+ and npm.
+Node.js 20.19+ or 22.12+ (Node.js 24 is recommended, matching the CI/CD deployment environment) and npm, or [Bun](https://bun.sh/) 1.4+. Dependencies are tracked with `bun.lock`.
 
 ### Installation
 ```bash
 npm install
+# or
+bun install
 ```
 
 ### Development Server
 ```bash
 npm run dev
 ```
-Starts the local Vite dev server at `http://localhost:3000`.
+Runs the catalogue and static page generators once at startup (`scripts/generate-lesson-catalog.js` and `scripts/generate-lesson-pages.js`), then starts the local Vite dev server at `http://localhost:3000`.
+
+*(Note: When registering a new lesson in `src/lessons/manifest.js`, restart `npm run dev` or rerun the generator scripts to generate the new lesson's static entry page and catalogue entry).*
+
+### Type Checking & Linting
+```bash
+npm run lint
+```
+Runs TypeScript type validation (`tsc --noEmit`) to verify lesson schemas and application code without emitting output.
 
 ### Production Build
 ```bash
 npm run build
 ```
-Generates a static production bundle in `dist/`. All assets and script paths are relative (`./`), ready for immediate deployment to GitHub Pages or any static file host.
+Executes the full static production pipeline:
+1. Generates `src/generated/lesson-catalog.js` from `src/lessons/manifest.js`.
+2. Generates static lesson HTML entry pages in `lessons/<id>/index.html`.
+3. Runs `vite build` to bundle the multi-page site into `dist/`.
+4. Runs `scripts/generate-launchers.js` to create standalone student HTML launchers in `dist/downloads/`.
 
 ---
 
 ## 3. GitHub Pages Deployment
 
-To deploy to GitHub Pages:
+The repository uses an automated GitHub Actions workflow (`.github/workflows/deploy.yml`) to build, validate, and deploy the website to GitHub Pages on every push to `main` (or via manual `workflow_dispatch`).
 
-1. Push your repository to GitHub.
-2. Build the project:
-   ```bash
-   npm run build
-   ```
-3. Deploy the contents of the `dist/` directory to your `gh-pages` branch, or configure GitHub Actions to deploy from the build output.
-4. Because `base: './'` is configured in `vite.config.ts`, the site functions seamlessly under repository subpaths (e.g. `https://<user>.github.io/<repo>/`) without 404 errors on assets.
+### Workflow Details
+1. **Trigger**: Push to the `main` branch or manual trigger via Actions tab.
+2. **Setup & Dependencies**: Installs Node.js 24 and Bun, then runs `bun ci` for frozen dependency installation.
+3. **Lint & Validation**: Runs `npm run lint` (`tsc --noEmit`) to verify code and lesson schemas.
+4. **GitHub Pages Configuration**: Uses `actions/configure-pages@v5` to resolve the production base URL (e.g., repository subpath `https://<owner>.github.io/<repo>/`).
+5. **Production Build with Strict URL Validation**: Executes `npm run build` with `SITE_URL` set to the resolved Pages base URL and `REQUIRE_PRODUCTION_SITE_URL=1` to guarantee production launchers target the canonical HTTPS domain.
+6. **Verification Step**: Automatically inspects `src/generated/lesson-catalog.js` to verify that every registered lesson has an HTML page in `dist/lessons/<id>/index.html`, a launcher in `dist/downloads/`, and valid production redirect URLs.
+7. **Deploy**: Uploads and deploys `dist/` directly via `actions/deploy-pages@v4`.
+
+### Repository Configuration
+In your GitHub repository settings under **Settings > Pages > Build and deployment**:
+- Set **Source** to **GitHub Actions**.
+
+No manual builds or `gh-pages` branch management are required.
 
 ---
 
@@ -63,82 +88,112 @@ To deploy to GitHub Pages:
 To make sharing individual lessons effortless for teachers and students, the application includes auto-generated HTML launcher files.
 
 ### What Launcher Files Are
-- **Lightweight Entry Points**: Each launcher file (e.g. `8E-stem-and-leaf-plots.html`) is a standalone, lightweight (~1 KB) HTML document designed to be distributed to students (via email, Google Classroom, USB drive, or school intranet).
-- **No Duplication**: Launchers do **not** duplicate the slideshow engine, KaTeX, renderer, or styles. When a student opens the launcher file locally, it immediately redirects to the corresponding hosted lesson URL (`https://<site>/?lesson=8E`) while displaying a clean fallback link in case automatic redirection is disabled.
+- **Direct Lesson Redirection**: Each launcher file (e.g. `8E-stem-and-leaf-plots.html`) is a standalone, lightweight (~1 KB) HTML document that redirects directly to the canonical static lesson URL (`https://<site>/lessons/<id>/`).
+- **No Duplication**: Launchers do **not** duplicate the slideshow engine, KaTeX, renderer, or styles. When a student opens the launcher file locally, it immediately redirects to the hosted lesson page while displaying a clean fallback link in case automatic redirection is disabled.
+- **Requires Internet Access**: Launchers can be distributed via email, Google Classroom, USB drive, or intranet and opened locally from the student's computer, but an active internet connection is required to load the hosted presentation. They are not offline copies of the lessons.
 - **Workflow**:
   1. The teacher downloads `8E-stem-and-leaf-plots.html` using the **Download launcher** button in the lesson library (or grabs it from `dist/downloads/`).
   2. The teacher shares the file with students.
-  3. The student opens the HTML file, which immediately launches the live, interactive presentation for lesson `8E`.
+  3. The student opens the HTML file, which redirects directly to the hosted static lesson at `/lessons/8E/`.
 
 ### Site URL Configuration
 Launcher files redirect to your hosted website base URL. You can configure this in one central place:
 
-1. **Option A (Environment Variable)**:
+1. **Option A (Environment Variable — Recommended)**:
    Set the `SITE_URL` variable before building:
    ```bash
    export SITE_URL="https://username.github.io/year-7-mathematics-slideshows"
    npm run build
    ```
 2. **Option B (`site.config.js`)**:
-   Edit `site.config.js` in the project root:
+   Edit the `productionUrl` property directly inside `site.config.js` without altering the rest of the configuration object (which contains `resolveBaseUrl()` and fallback resolvers):
    ```javascript
+   // Inside site.config.js:
    export const siteConfig = {
-     productionUrl: 'https://username.github.io/year-7-mathematics-slideshows',
-     developmentUrl: 'http://localhost:3000'
+     productionUrl: envUrl ? String(envUrl).trim().replace(/\/+$/, '') : 'https://username.github.io/year-7-mathematics-slideshows',
+     // ... preserve developmentUrl and resolveBaseUrl()
    };
    ```
 
-*Note*: If no production URL is configured, the build emits a helpful warning and defaults to `http://localhost:3000` so local testing never fails.
+*Note on Local Development vs Production*:
+- During local development builds, if no production URL is configured, the generator falls back to `http://localhost:3000` so local testing works.
+- During release builds (such as CI/CD with `REQUIRE_PRODUCTION_SITE_URL=1`), strict URL validation ensures a valid, secure HTTPS production URL is present and loopback/localhost addresses are rejected before any files are generated or modified.
 
 ### Where Generated Launchers Appear
 When you build the project (`npm run build` or `npm run generate-launchers`), launcher HTML files are generated automatically for every registered lesson in:
 - `dist/downloads/` (for production distribution and static hosting)
 - `public/downloads/` (for local development server serving)
 
-File names are safe and descriptive:
-```text
-dist/downloads/
-├── 8E-stem-and-leaf-plots.html
-└── 8F-sector-graphs-and-divided-bar-graphs.html
-```
+Safe file cleanup automatically purges obsolete launchers from both folders when lessons are removed or renamed.
 
 ---
 
 ## 5. Architecture Overview
 
 ```text
-├── index.html                   # HTML entry point
-├── vite.config.ts               # Vite configuration (base: './')
-├── site.config.js               # Central deployment URL configuration
+maths-slideshows/
+├── index.html                           # Root Library page (metadata only, no eager slide bundles)
+├── vite.config.ts                       # Multi-page Vite configuration (base: './')
+├── site.config.js                       # Central deployment URL configuration
+├── package.json                         # Build scripts, Vite & KaTeX dependencies
+├── bun.lock                             # Lockfile for reproducible installs
+├── LESSON_AUTHORING.md                  # Comprehensive guide for creating new lessons
+├── README.md                            # Project overview & documentation
+├── .github/
+│   └── workflows/
+│       └── deploy.yml                   # Automated GitHub Actions deployment to GitHub Pages
 ├── scripts/
-│   └── generate-launchers.js    # Auto-generation build script for student launchers
-├── LESSON_AUTHORING.md          # Guide for adding future lessons
-├── README.md                    # Project overview & documentation
+│   ├── generate-lesson-catalog.js       # Extracts metadata and validates lessons against schema
+│   ├── generate-lesson-pages.js         # Generates static HTML pages in lessons/<id>/index.html
+│   └── generate-launchers.js            # Auto-generates student HTML launchers with cleanup & validation
+├── lessons/
+│   ├── 8E/
+│   │   └── index.html                   # Static entry page for Lesson 8E
+│   └── 8F/
+│       └── index.html                   # Static entry page for Lesson 8F
+├── public/
+│   └── downloads/                       # Local dev copies of student launchers
 └── src/
-    ├── main.js                  # App router & Course Library view
+    ├── main.js                          # Root library UI & legacy URL redirect handler
+    ├── lesson-entry.js                  # Shared entry point for static lesson pages (lazy-loads lesson data)
+    ├── generated/
+    │   └── lesson-catalog.js            # Auto-generated lightweight metadata catalogue
     ├── styles/
-    │   ├── base.css             # Reset, typography, colors & library view
-    │   ├── presentation.css     # Slideshow layouts, board styles & controls
-    │   └── teacher-tools.css    # Teacher tools modal, random picker & teams UI
+    │   ├── base.css                     # Reset, typography, colors & library view
+    │   ├── presentation.css             # Slideshow layouts, board styles & controls
+    │   └── teacher-tools.css            # Teacher tools modal, random picker & teams UI
     ├── tools/
-    │   ├── classManager.js      # Class rosters, localStorage, CSV parser, shuffle
-    │   └── teacherToolsModal.js # Modal dialog, random student picker, team generator
+    │   ├── classManager.js              # Class rosters, localStorage, CSV parser, shuffle
+    │   └── teacherToolsModal.js         # Modal dialog, random student picker, team generator
     ├── slideshow/
-    │   ├── engine.js            # Presentation engine & navigation logic
-    │   ├── renderer.js          # Slide & SVG graph rendering engine
-    │   ├── launcher.js          # Shared launcher generator & filename resolver
-    │   ├── drawing.js           # Interactive board pen (Pointer Events & ink store)
-    │   ├── timer.js             # Classroom practice timer
-    │   └── math.js              # KaTeX math rendering helper
+    │   ├── engine.js                    # Presentation engine & navigation logic
+    │   ├── renderer.js                  # Slide & SVG graph rendering engine
+    │   ├── launcher.js                  # Shared launcher generator & filename resolver
+    │   ├── drawing.js                   # Interactive board pen (Pointer Events & ink store)
+    │   ├── timer.js                     # Classroom practice timer
+    │   └── math.js                      # KaTeX math rendering helper
     └── lessons/
-        ├── index.js             # Lesson registry
-        ├── grouping.js          # Hierarchical course & chapter grouping logic
-        ├── 8E.js                # Stem-and-Leaf Plots lesson
-        └── 8F.js                # Sector Graphs & Divided Bar Graphs lesson
+        ├── manifest.js                  # Master lesson registry (ID and file path pairs)
+        ├── grouping.js                  # Hierarchical course & chapter grouping logic
+        ├── 8E.js                        # Stem-and-Leaf Plots lesson
+        └── 8F.js                        # Sector Graphs & Divided Bar Graphs lesson
 ```
 
 ---
 
 ## 6. Adding New Lessons
 
-To add a new lesson (e.g. `8G`), see the comprehensive [LESSON_AUTHORING.md](LESSON_AUTHORING.md) guide. You never need to touch the slideshow engine.
+To add a new lesson (e.g. `8G: Frequency Tables and Histograms`):
+
+1. Create `src/lessons/8G.js` and export your lesson configuration object as the default export.
+2. Register the lesson in `src/lessons/manifest.js`:
+   ```javascript
+   export const lessonManifest = [
+     { id: '8E', path: './8E.js' },
+     { id: '8F', path: './8F.js' },
+     { id: '8G', path: './8G.js' }, // New lesson entry
+   ];
+   ```
+3. Restart `npm run dev` (or run `npm run build`). Restarting `npm run dev` automatically regenerates the lesson catalogue (`src/generated/lesson-catalog.js`) and static HTML entry page (`lessons/8G/index.html`). Running `npm run build` runs the full production pipeline, which additionally generates downloadable student launchers in `dist/downloads/`.
+
+See the comprehensive [LESSON_AUTHORING.md](LESSON_AUTHORING.md) guide for complete slide schemas, visual components, math formulas, and authoring rules. You never need to touch the slideshow engine.
