@@ -38,18 +38,6 @@ export const lessonCatalog = [
       "Graph Comparisons"
     ],
     "slideCount": 12
-  },
-  {
-    "id": "TEST1",
-    "title": "Temporary Pipeline Test",
-    "subject": "Mathematics",
-    "yearLevel": 7,
-    "unit": "Integration Tests",
-    "folder": "Pipeline Verification",
-    "topics": [
-      "Testing"
-    ],
-    "slideCount": 3
   }
 ];
 

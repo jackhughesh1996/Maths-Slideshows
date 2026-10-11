@@ -12,10 +12,6 @@ export const lessonManifest = [
   {
     id: '8F',
     path: './8F.js'
-  },
-  {
-    id: 'TEST1',
-    path: './TEST1.js'
   }
 ];
 
