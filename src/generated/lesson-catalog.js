@@ -38,6 +38,61 @@ export const lessonCatalog = [
       "Graph Comparisons"
     ],
     "slideCount": 12
+  },
+  {
+    "id": "8G",
+    "title": "Describing Probability",
+    "subject": "Mathematics",
+    "yearLevel": 7,
+    "unit": "Chapter 8",
+    "folder": "Statistics and Probability",
+    "chapter": "Statistics and Probability",
+    "topics": [
+      "Probability Scale",
+      "Chance Vocabulary",
+      "Equally Likely Outcomes",
+      "Spinners and Relative Likelihood",
+      "Sample Space Lists",
+      "Chance Reasoning"
+    ],
+    "slideCount": 13
+  },
+  {
+    "id": "8H",
+    "title": "Theoretical Probability",
+    "subject": "Mathematics",
+    "yearLevel": 7,
+    "unit": "Chapter 8",
+    "folder": "Statistics and Probability",
+    "chapter": "Statistics and Probability",
+    "topics": [
+      "Theoretical Probability",
+      "Sample Space",
+      "Favourable Outcomes",
+      "Single-Step Experiments",
+      "Complementary Events",
+      "Probability Formula"
+    ],
+    "slideCount": 15
+  },
+  {
+    "id": "8I",
+    "title": "Experimental Probability in Single-Step Experiments",
+    "subject": "Mathematics",
+    "yearLevel": 7,
+    "unit": "Chapter 8",
+    "folder": "Statistics and Probability",
+    "chapter": "Statistics and Probability",
+    "topics": [
+      "Experimental Probability",
+      "Relative Frequency",
+      "Theoretical vs Experimental",
+      "Expected Occurrences",
+      "Sample Size & More Trials",
+      "Law of Large Numbers",
+      "Chance Variation"
+    ],
+    "slideCount": 15
   }
 ];
 

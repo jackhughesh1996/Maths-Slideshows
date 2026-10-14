@@ -1292,6 +1292,828 @@ svg .sector-construction-group.is-active-sector .sector-wedge {
 }
 
 /* --------------------------------------------------------------------------
+   PROBABILITY SIMULATIONS (SPINNERS, BAG DRAW, PEN DRAW)
+   -------------------------------------------------------------------------- */
+.sim-widget {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sim-header {
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+}
+
+.sim-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.sim-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.sim-tab-btn {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sim-tab-btn.active {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sim-tab-badge {
+  font-size: 0.68rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.sim-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim-controls-bar .btn {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+}
+
+.sim-result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.sim-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sim-badge-note {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.sim-spinner-view {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sim-spinner-view.active {
+  display: flex;
+}
+
+.sim-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sim-visual-col {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sim-spinner-svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+
+.sim-needle {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+.sim-data-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sim-tally-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sim-tally-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-tally-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.sim-tally-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sim-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.sim-expected-term {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.sim-tally-val {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.sim-pct {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.sim-bar-track {
+  height: 5px;
+  background-color: var(--bg-muted);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sim-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.sim-total-spins, .sim-total-draws {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.sim-insight-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background-color: var(--primary-subtle);
+  border: 1px dashed var(--primary-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.sim-insight-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.sim-bag-container, .sim-pen-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sim-bag-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-muted);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+.sim-bag-badge {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.sim-bag-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.sim-token-chip {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  display: inline-block;
+}
+
+.sim-pens-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-pen-preview-icon {
+  font-size: 0.9rem;
+}
+
+.sim-draw-stage {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafbfc;
+  border: 1.5px dashed var(--border-medium);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.sim-empty-stage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sim-drawn-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1.5px solid;
+  animation: simPopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes simPopIn {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sim-token-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sim-pen-icon {
+  font-size: 1.3rem;
+}
+
+.sim-drawn-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-drawn-label {
+  font-size: 0.88rem;
+}
+
+.sim-drawn-term {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.sim-drawn-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   DO NOW SPINNERS (PROBLEM STIMULUS)
+   -------------------------------------------------------------------------- */
+.do-now-spinners-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+
+.do-now-spinner-card {
+  flex: 1;
+  min-width: 100px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.do-now-spinner-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.do-now-spinner-svg {
+  width: 100%;
+  max-width: 125px;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+}
+
+.do-now-spinner-badge {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.do-now-spinner-sub {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.btn-spin-donow {
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-spin-donow:hover {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   LESSON 8I: EXPERIMENTAL PROBABILITY SIMULATION STYLES
+   -------------------------------------------------------------------------- */
+.sim-coin-class-widget,
+.sim-cumulative-widget,
+.sim-basketball-widget,
+.sim-coin-summary-widget {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Coin Class Controls */
+.coin-class-controls-bar,
+.cumul-controls-bar,
+.bball-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.coin-size-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.coin-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+}
+
+.coin-stepper .btn {
+  padding: 2px 7px;
+  border-radius: 0;
+  border: none;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.coin-size-display {
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.coin-action-buttons {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* Coin Pooled Summary */
+.coin-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.coin-summary-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.coin-badge-active {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background-color: #dbeafe;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.coin-badge-complete {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #15803d;
+  background-color: #dcfce7;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.coin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.coin-stat-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-muted);
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.coin-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.coin-stat-val {
+  font-size: 1.05rem;
+  font-family: var(--font-mono);
+  margin: 1px 0;
+}
+
+.coin-stat-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.coin-empty-prompt {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-muted);
+  padding: 10px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* SVG Chart wrapper */
+.coin-chart-wrapper {
+  background-color: #fafbfc;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.coin-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Student Chips Ribbon */
+.coin-students-ribbon {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: var(--bg-muted);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.coin-chips-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+}
+
+.coin-chips-scroll {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.coin-student-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  padding: 2px 5px;
+  border-radius: 3px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-medium);
+}
+
+.coin-student-chip.badge-exact {
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+  color: #15803d;
+}
+
+.coin-student-chip.badge-far {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+  color: #b45309;
+}
+
+/* Discussion Card */
+.coin-disc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coin-disc-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coin-disc-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+  background-color: var(--primary-subtle);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.coin-disc-students {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.coin-disc-takeaway {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background-color: var(--primary-subtle);
+  border: 1px dashed var(--primary-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+/* Cumulative Simulation */
+.cumul-stats-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cumul-pill {
+  flex: 1;
+  min-width: 110px;
+  background-color: var(--bg-muted);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cumul-pill.highlight {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.cumul-pill.success {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.cumul-graph-container {
+  background-color: #fafbfc;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.cumul-graph-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Basketball Simulation */
+.bball-stage-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.bball-die-col {
+  flex-shrink: 0;
+  width: 140px;
+  display: flex;
+  justify-content: center;
+}
+
+.bball-die-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bball-outcome-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bball-outcome-badge.score {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.bball-outcome-badge.miss {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.bball-outcome-badge.waiting {
+  background-color: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border-medium);
+}
+
+.bball-score-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bball-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.bball-stat-box {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: center;
+  background-color: var(--bg-muted);
+}
+
+.bball-stat-box.score-box {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.bball-stat-box.miss-box {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.bball-stat-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.bball-stat-num {
+  font-size: 1.25rem;
+  font-family: var(--font-mono);
+  margin: 1px 0;
+}
+
+.bball-stat-sub {
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+.bball-comparison-bar {
+  background-color: var(--bg-muted);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+}
+
+.bball-comp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
    RESPONSIVE DESIGN (PROJECTION & NARROW SCREENS)
    -------------------------------------------------------------------------- */
 @media (max-height: 720px) {
@@ -1312,3 +2134,5 @@ svg .sector-construction-group.is-active-sector .sector-wedge {
     flex: auto;
   }
 }
+
+

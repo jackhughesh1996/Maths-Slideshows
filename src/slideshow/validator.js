@@ -33,7 +33,7 @@ const COMMON_SLIDE_PROPS = new Set([
 const TYPE_ALLOWED_PROPS = {
   'title': new Set(['overview', 'topics']),
   'learning': new Set(['learningIntention', 'successCriteria', 'keyPrinciple', 'extraBlocks']),
-  'do-now': new Set(['questions', 'sidebarNotes']),
+  'do-now': new Set(['questions', 'sidebarNotes', 'spinners', 'stimulusTitle', 'stimulusPrompt']),
   'worked-example': new Set(['prompt', 'data', 'leftBlocks', 'steps']),
   'i-do': new Set(['prompt', 'data', 'leftBlocks', 'steps']),
   'we-do': new Set(['prompt', 'data', 'notes', 'workspaceContent', 'solution', 'studentAction', 'leftBlocks', 'rightBlocks', 'content']),
@@ -319,6 +319,13 @@ export function validateLesson(lesson, options = {}) {
               errors.push(`${blockDesc} Item [${itIdx}]: ${bType} item requires a 'value', 'amount', 'length', or 'fraction' value.`);
             }
           });
+        }
+      }
+
+      // Simulation validation
+      if (bType === 'simulation') {
+        if (!block.simType || typeof block.simType !== 'string') {
+          errors.push(`${blockDesc}: Simulation block requires a valid 'simType' string.`);
         }
       }
     });

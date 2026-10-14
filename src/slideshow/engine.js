@@ -8,6 +8,7 @@ import { renderSlide } from './renderer.js';
 import { BoardDrawing } from './drawing.js';
 import { ClassroomTimer } from './timer.js';
 import { openTeacherTools } from '../tools/teacherToolsModal.js';
+import { initSimulations } from './simulations.js';
 
 export class SlideshowEngine {
   /**
@@ -179,6 +180,9 @@ export class SlideshowEngine {
     if (timerWidget) {
       this.timer = new ClassroomTimer(timerWidget);
     }
+
+    // 3. Probability Simulations
+    this.simulations = initSimulations(this.container);
   }
 
   initEvents() {
@@ -284,6 +288,11 @@ export class SlideshowEngine {
     if (this.drawing) {
       this.drawing.destroy();
       this.drawing = null;
+    }
+
+    if (this.simulations) {
+      this.simulations.forEach((sim) => sim.destroy && sim.destroy());
+      this.simulations = [];
     }
   }
 
