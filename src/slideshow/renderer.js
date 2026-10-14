@@ -93,19 +93,36 @@ export function renderBlock(block) {
 
     case 'table': {
       const headers = (block.headers || [])
-        .map((h) => `<th>${renderMathInText(h)}</th>`)
+        .map((h) => {
+          if (h && typeof h === 'object') {
+            const revClass = h.reveal ? ' class="reveal-item"' : '';
+            const stepAttr = h.revealStep !== undefined ? ` data-reveal-step="${h.revealStep}"` : '';
+            return `<th><span${revClass}${stepAttr}>${renderMathInText(h.text || '')}</span></th>`;
+          }
+          return `<th>${renderMathInText(String(h))}</th>`;
+        })
         .join('');
       const rows = (block.rows || [])
         .map((row) => {
           const cells = row
-            .map((c) => `<td>${renderMathInText(String(c))}</td>`)
+            .map((c) => {
+              if (c && typeof c === 'object') {
+                const revClass = c.reveal ? ' class="reveal-item"' : '';
+                const stepAttr = c.revealStep !== undefined ? ` data-reveal-step="${c.revealStep}"` : '';
+                return `<td><span${revClass}${stepAttr}>${renderMathInText(c.text || '')}</span></td>`;
+              }
+              return `<td>${renderMathInText(String(c))}</td>`;
+            })
             .join('');
           return `<tr>${cells}</tr>`;
         })
         .join('');
+      const tableClasses = ['math-table'];
+      if (block.compact) tableClasses.push('compact-table');
+      if (block.className) tableClasses.push(escapeHtml(block.className));
       return `
         <div class="table-container ${revealClass}">
-          <table class="math-table">
+          <table class="${tableClasses.join(' ')}">
             <thead><tr>${headers}</tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -1443,16 +1460,38 @@ function renderBoardTaskSlide(slide) {
     ${notesHtml}
   `;
 
+  let solutionHtml = '';
+  if (slide.solution) {
+    if (slide.separateSolutions && Array.isArray(slide.solution)) {
+      solutionHtml = slide.solution
+        .map((solBlock, idx) => {
+          const stepNum = solBlock.revealStep !== undefined ? solBlock.revealStep : idx + 1;
+          const badgeTitle = solBlock.badgeTitle || solBlock.title || 'Model Solution';
+          return `
+            <div class="reveal-item solution-container" data-reveal-step="${stepNum}" style="margin-top: 10px;">
+              <span class="solution-badge">✔ ${escapeHtml(badgeTitle)}</span>
+              <div class="solution-content" style="margin-top: 8px;">
+                ${renderBlock(solBlock)}
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    } else {
+      solutionHtml = `
+        <div class="reveal-item solution-container" style="margin-top: 10px;">
+          <span class="solution-badge">✔ Model Solution</span>
+          <div class="solution-content" style="margin-top: 8px;">
+            ${renderBlocks(slide.solution)}
+          </div>
+        </div>
+      `;
+    }
+  }
+
   const rightContent = `
     ${slide.rightBlocks ? renderBlocks(slide.rightBlocks) : ''}
-    ${slide.solution ? `
-      <div class="reveal-item solution-container" style="margin-top: 10px;">
-        <span class="solution-badge">✔ Model Solution</span>
-        <div class="solution-content" style="margin-top: 8px;">
-          ${renderBlocks(slide.solution)}
-        </div>
-      </div>
-    ` : ''}
+    ${solutionHtml}
   `;
 
   return `
@@ -1486,10 +1525,12 @@ function renderPracticeSlide(slide) {
           ${task.prompt ? `<p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 8px;">${renderMathInText(task.prompt)}</p>` : ''}
           ${task.blocks ? renderBlocks(task.blocks) : ''}
         </div>
-        <div class="reveal-item solution-container" style="margin-top: 12px;">
-          <span class="solution-badge">✔ Solution</span>
-          ${task.solution ? renderBlocks(task.solution) : ''}
-        </div>
+        ${task.solution && (Array.isArray(task.solution) ? task.solution.length > 0 : Boolean(task.solution)) ? `
+          <div class="reveal-item solution-container" style="margin-top: 12px;">
+            <span class="solution-badge">✔ Solution</span>
+            ${renderBlocks(task.solution)}
+          </div>
+        ` : ''}
       </div>
     `)
     .join('');

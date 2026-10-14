@@ -1778,6 +1778,17 @@ svg .sector-construction-group.is-active-sector .sector-wedge {
   flex-wrap: wrap;
 }
 
+.coin-size-confirm-bar {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 /* Coin Pooled Summary */
 .coin-summary-header {
   display: flex;
@@ -2111,6 +2122,171 @@ svg .sector-construction-group.is-active-sector .sector-wedge {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Coin Toss Animation Box (Slide 3) */
+.coin-toss-animation-box {
+  margin-bottom: 8px;
+}
+
+.coin-anim-card {
+  background: #f8fafc;
+  border: 1.5px solid var(--primary-border, #bfdbfe);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.coin-anim-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.coin-anim-counter {
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  background: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+}
+
+.coin-anim-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coin-anim-visual {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.coin-anim-visual.heads {
+  background: #fefce8;
+  border-color: #facc15;
+  color: #854d0e;
+}
+
+.coin-anim-visual.tails {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.coin-anim-visual.waiting {
+  background: var(--bg-muted);
+  border-color: var(--border-medium);
+  color: var(--text-muted);
+}
+
+.coin-anim-glyph {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.coin-anim-callout {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.coin-anim-counts-box {
+  display: flex;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.coin-anim-count-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.72rem;
+}
+
+.coin-anim-count-metric .metric-label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.coin-anim-count-metric .metric-value {
+  font-size: 0.95rem;
+  font-family: var(--font-mono);
+}
+
+.coin-anim-progress-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.coin-anim-progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.18s linear;
+}
+
+.coin-anim-history-strip {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+
+.coin-anim-chip {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.coin-anim-chip.heads {
+  background: #fef08a;
+  color: #713f12;
+  border: 1px solid #eab308;
+}
+
+.coin-anim-chip.tails {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #94a3b8;
+}
+
+/* Compact math table for projector displays */
+table.math-table.compact-table th {
+  padding: 4px 8px;
+  font-size: 0.82rem;
+}
+
+table.math-table.compact-table td {
+  padding: 4px 8px;
+  font-size: 0.86rem;
+  line-height: 1.3;
 }
 
 /* --------------------------------------------------------------------------

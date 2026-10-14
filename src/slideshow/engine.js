@@ -505,7 +505,16 @@ export class SlideshowEngine {
       this.timer.syncSlide(this.currentSlideIndex, slideData ? slideData.timerMinutes : null);
     }
 
-    // 5. Development-only slide overflow audit check
+    // 5. Notify simulations of slide navigation
+    if (this.simulations) {
+      this.simulations.forEach((sim) => {
+        if (typeof sim.onSlideChange === 'function') {
+          sim.onSlideChange(this.currentSlideIndex, newIndex);
+        }
+      });
+    }
+
+    // 6. Development-only slide overflow audit check
     this.checkSlideOverflow(this.currentSlideIndex);
   }
 

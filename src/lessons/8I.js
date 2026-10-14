@@ -3,7 +3,8 @@
  * Year 7 Mathematics: Lesson 8I — Experimental Probability in Single-Step Experiments
  * Chapter: Statistics and Probability
  * Pacing: 60-minute lesson designed around tight I Do -> We Do -> You Do model.
- * Substantive student independent practice commences at ~22 minutes (Slide 8/9/13).
+ * First student independent task commences at 21 minutes (Slide 9: You Do).
+ * Substantive independent textbook practice commences at Slide 13 (20-minute allocation).
  */
 
 export default {
@@ -78,12 +79,12 @@ export default {
           answer: "No. Individual results vary naturally by chance around 10 (e.g. 7, 9, 11, 14 heads)."
         },
         {
-          prompt: "Before running: What is the expected total heads for a class of 25 students (500 tosses)?",
-          answer: "$250$ heads ($\\text{Expected} = \\frac{1}{2} \\times 500 = 250$ heads)."
+          prompt: "Before running: For a class of $n$ students (each tossing 20 times), what is the expected total number of heads?",
+          answer: "$10n$ heads ($\\text{Expected} = \\frac{1}{2} \\times 20n = 10n$). For example, for $25$ students ($500$ tosses), expected heads is $10 \\times 25 = 250$."
         },
         {
           prompt: "After running: Total heads, total tosses, fraction landing heads, and how close to 1/2?",
-          answer: "Check the pooled class summary box. Over 500 tosses, the fraction of heads is typically very close to $50\\%$."
+          answer: "Check the pooled class summary box for your observed heads, total tosses, fraction, and distance from $50\\%$. Ask students: Is your class percentage close to $\\frac{1}{2}$? Why did individual students vary more than the pooled class?"
         }
       ],
       sidebarNotes: [
@@ -103,7 +104,7 @@ export default {
     {
       type: "board-task",
       phase: "explicit",
-      estimatedMinutes: 3,
+      estimatedMinutes: 2,
       title: "Discussing the Class Experiment",
       subtitle: "Comparing individual student variation with pooled classroom results",
       studentAction: "Reflect: Why does pooling results give an estimate closer to 1/2 than individual tosses?",
@@ -134,12 +135,12 @@ export default {
     {
       type: "notes",
       phase: "explicit",
-      estimatedMinutes: 3,
+      estimatedMinutes: 2,
       title: "Key Definitions: Theoretical vs Experimental Probability",
       subtitle: "Copy these core rules and formulas into your workbook",
       columns: [
         {
-          width: "50",
+          width: "half",
           title: "Theoretical vs Experimental",
           blocks: [
             {
@@ -152,7 +153,7 @@ export default {
           ]
         },
         {
-          width: "50",
+          width: "half",
           title: "The Experimental Probability Formula",
           blocks: [
             {
@@ -168,12 +169,12 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 6: I Do (Worked Example)
+    // SLIDE 6: I Do: Calculating Experimental Probability
     // ------------------------------------------------------------------------
     {
       type: "worked-example",
       phase: "explicit",
-      estimatedMinutes: 4,
+      estimatedMinutes: 3,
       title: "I Do: Calculating Experimental Probability",
       subtitle: "20 coin tosses produce 13 heads and 7 tails",
       prompt: "A coin is tossed 20 times. The coin lands on Heads 13 times and on Tails 7 times. Calculate the experimental probability of Heads as a fraction, decimal, and percentage, and compare your result with the theoretical probability.",
@@ -207,17 +208,18 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 7: We Do (Die Results)
+    // SLIDE 7: We Do: Die Results
     // ------------------------------------------------------------------------
     {
       type: "board-task",
       phase: "guided",
-      estimatedMinutes: 4,
+      estimatedMinutes: 3,
       title: "We Do: Calculating Die Probabilities From Trials",
       subtitle: "An ordinary six-sided die is rolled 8 times",
       studentAction: "On whiteboards: calculate experimental Pr(3) and Pr(even) as fractions and percentages.",
       prompt: "A six-sided die was rolled 8 times with the following sequence of results recorded:",
       data: "1,  4,  3,  6,  6,  2,  4,  3",
+      separateSolutions: true,
       leftBlocks: [
         {
           type: "note-box",
@@ -227,38 +229,48 @@ export default {
         },
         {
           type: "table",
-          headers: ["Roll #", "Outcome", "Is it 3?", "Is it Even?"],
+          compact: true,
+          headers: [
+            "Roll #",
+            "Outcome",
+            { text: "Part (a): Is it 3?", reveal: true, revealStep: 1 },
+            { text: "Part (b): Is it Even?", reveal: true, revealStep: 2 }
+          ],
           rows: [
-            ["Roll 1", "1", "No", "No"],
-            ["Roll 2", "4", "No", "Yes ✔"],
-            ["Roll 3", "3", "Yes ✔", "No"],
-            ["Roll 4", "6", "No", "Yes ✔"],
-            ["Roll 5", "6", "No", "Yes ✔"],
-            ["Roll 6", "2", "No", "Yes ✔"],
-            ["Roll 7", "4", "No", "Yes ✔"],
-            ["Roll 8", "3", "Yes ✔", "No"]
+            ["Roll 1", "1", { text: "No", reveal: true, revealStep: 1 }, { text: "No", reveal: true, revealStep: 2 }],
+            ["Roll 2", "4", { text: "No", reveal: true, revealStep: 1 }, { text: "Yes ✔ (4)", reveal: true, revealStep: 2 }],
+            ["Roll 3", "3", { text: "Yes ✔ (3)", reveal: true, revealStep: 1 }, { text: "No", reveal: true, revealStep: 2 }],
+            ["Roll 4", "6", { text: "No", reveal: true, revealStep: 1 }, { text: "Yes ✔ (6)", reveal: true, revealStep: 2 }],
+            ["Roll 5", "6", { text: "No", reveal: true, revealStep: 1 }, { text: "Yes ✔ (6)", reveal: true, revealStep: 2 }],
+            ["Roll 6", "2", { text: "No", reveal: true, revealStep: 1 }, { text: "Yes ✔ (2)", reveal: true, revealStep: 2 }],
+            ["Roll 7", "4", { text: "No", reveal: true, revealStep: 1 }, { text: "Yes ✔ (4)", reveal: true, revealStep: 2 }],
+            ["Roll 8", "3", { text: "Yes ✔ (3)", reveal: true, revealStep: 1 }, { text: "No", reveal: true, revealStep: 2 }]
           ]
         }
       ],
       solution: [
         {
           type: "paragraph",
-          text: "**(a) Experimental $\\text{Pr}(3)$:**\nOutcome 3 appeared 2 times (Roll 3 and Roll 8) out of 8 rolls.\n$$\\text{Pr}(3) = \\frac{2}{8} = \\frac{1}{4} = 0.25 = 25\\%$$"
+          badgeTitle: "Part (a): Experimental Pr(3)",
+          revealStep: 1,
+          text: "**(a) Experimental $\\text{Pr}(3)$:**\nOutcome 3 appeared 2 times (Roll 3 and Roll 8) out of 8 rolls.\n$$\\text{Pr}(3) = \\frac{\\text{Frequency of 3}}{\\text{Total Trials}} = \\frac{2}{8} = \\frac{1}{4} = 0.25 = 25\\%$$"
         },
         {
           type: "paragraph",
-          text: "**(b) Experimental $\\text{Pr}(\\text{even})$:**\nEven outcomes (2, 4, 6) appeared 5 times (Rolls 2, 4, 5, 6, 7) out of 8 rolls.\n$$\\text{Pr}(\\text{even}) = \\frac{5}{8} = 0.625 = 62.5\\%$$"
+          badgeTitle: "Part (b): Experimental Pr(even)",
+          revealStep: 2,
+          text: "**(b) Experimental $\\text{Pr}(\\text{even})$:**\nEven outcomes (2, 4, 6) appeared 5 times (Rolls 2, 4, 5, 6, 7) out of 8 rolls.\n$$\\text{Pr}(\\text{even}) = \\frac{\\text{Frequency of even}}{\\text{Total Trials}} = \\frac{5}{8} = 0.625 = 62.5\\%$$"
         }
       ]
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 8: Notes and I Do (Expected Occurrences)
+    // SLIDE 8: Notes and I Do: Expected Occurrences
     // ------------------------------------------------------------------------
     {
       type: "worked-example",
       phase: "explicit",
-      estimatedMinutes: 4,
+      estimatedMinutes: 3,
       title: "Notes & I Do: Expected Number of Occurrences",
       subtitle: "Predicting occurrences using probability and number of trials",
       leftBlocks: [
@@ -289,85 +301,15 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 9: We Do (Comparing Experimental vs Theoretical Predictions)
-    // ------------------------------------------------------------------------
-    {
-      type: "board-task",
-      phase: "guided",
-      estimatedMinutes: 4,
-      title: "We Do: Comparing Experimental vs Theoretical Predictions",
-      subtitle: "Predicting threes in 80 further rolls using two different probability sources",
-      studentAction: "On whiteboards: calculate predicted threes using (a) experimental and (b) theoretical probabilities.",
-      prompt: "Suppose you roll the die 80 further times. Predict the number of threes rolled using:\n(a) Our experimental result from Slide 7 ($\\text{Pr}(3) = \\frac{1}{4}$)\n(b) The theoretical model of a fair die ($\\text{Pr}(3) = \\frac{1}{6}$)",
-      leftBlocks: [
-        {
-          type: "table",
-          headers: ["Probability Source", "Probability Value", "Prediction Formula for 80 Rolls"],
-          rows: [
-            ["Experimental (Slide 7)", "$\\text{Pr}(3) = \\frac{1}{4} = 0.25$", "$\\frac{1}{4} \\times 80$"],
-            ["Theoretical (Fair Die)", "$\\text{Pr}(3) = \\frac{1}{6} \\approx 0.167$", "$\\frac{1}{6} \\times 80$"]
-          ]
-        },
-        {
-          type: "note-box",
-          variant: "gold",
-          title: "📌 Non-Integer Expectations",
-          text: "Expected counts can be non-integers (decimals)! E.g. $13.3$ represents the long-run average per 80 rolls over many repeated sets of rolls."
-        }
-      ],
-      solution: [
-        {
-          type: "paragraph",
-          text: "**(a) Experimental Prediction:**\n$$\\text{Expected threes} = \\frac{1}{4} \\times 80 = 20 \\text{ threes}$$"
-        },
-        {
-          type: "paragraph",
-          text: "**(b) Theoretical Prediction:**\n$$\\text{Expected threes} = \\frac{1}{6} \\times 80 = \\frac{80}{6} = 13.\\dot{3} \\approx 13.3 \\text{ threes}$$"
-        },
-        {
-          type: "paragraph",
-          text: "**Comparison:** The experimental prediction (20) is higher than the theoretical prediction (13.3) because our small initial sample of 8 rolls happened to produce threes more frequently than average ($25\\%$ vs $16.7\\%$)."
-        }
-      ]
-    },
-
-    // ------------------------------------------------------------------------
-    // SLIDE 10: More-Trials Simulation
-    // ------------------------------------------------------------------------
-    {
-      type: "board-task",
-      phase: "guided",
-      estimatedMinutes: 4,
-      title: "Simulation: The Effect of More Trials",
-      subtitle: "Adding 10, 100, or 1000 tosses to observe cumulative relative frequency",
-      studentAction: "Watch the graph: Does the cumulative probability line settle closer to 0.5 as trials increase?",
-      prompt: "We reuse our class coin results and add more tosses to observe how experimental probability behaves over large numbers of trials:",
-      workspaceContent: [
-        {
-          type: "simulation",
-          simType: "coin-cumulative",
-          title: "Cumulative Experimental Probability Graph"
-        }
-      ],
-      notes: [
-        {
-          type: "note-box",
-          variant: "gold",
-          title: "Teacher Checkpoint",
-          text: "Notice: More trials tend to improve estimates, but the graph does NOT move steadily closer or equal exactly 0.5 on every single toss."
-        }
-      ]
-    },
-
-    // ------------------------------------------------------------------------
-    // SLIDE 11: You Do (Unknown Spinner Frequency Table)
+    // SLIDE 9: You Do: Unknown Spinner Experiment (First Independent Task)
+    // Pacing milestone: Starts at 21 minutes
     // ------------------------------------------------------------------------
     {
       type: "practice",
-      phase: "guided",
+      phase: "independent",
       estimatedMinutes: 4,
       title: "You Do: Unknown Spinner Experiment",
-      subtitle: "A spinner with unknown sector sizes was spun 40 times with the following results.",
+      subtitle: "Attempt these problems independently in your workbook before answers are revealed",
       tasks: [
         {
           title: "Task 1: Experimental Pr(Red)",
@@ -415,12 +357,83 @@ export default {
     },
 
     // ------------------------------------------------------------------------
+    // SLIDE 10: We Do: Prediction Comparison
+    // ------------------------------------------------------------------------
+    {
+      type: "board-task",
+      phase: "guided",
+      estimatedMinutes: 3,
+      title: "We Do: Comparing Experimental vs Theoretical Predictions",
+      subtitle: "Predicting threes in 80 further rolls using two different probability sources",
+      studentAction: "On whiteboards: calculate predicted threes using (a) experimental and (b) theoretical probabilities.",
+      prompt: "Suppose you roll the die 80 further times. Predict the number of threes rolled using:\n(a) Our experimental result from Slide 7 ($\\text{Pr}(3) = \\frac{1}{4}$)\n(b) The theoretical model of a fair die ($\\text{Pr}(3) = \\frac{1}{6}$)",
+      leftBlocks: [
+        {
+          type: "table",
+          headers: ["Probability Source", "Probability Value", "Prediction Formula for 80 Rolls"],
+          rows: [
+            ["Experimental (Slide 7)", "$\\text{Pr}(3) = \\frac{1}{4} = 0.25$", "$\\frac{1}{4} \\times 80$"],
+            ["Theoretical (Fair Die)", "$\\text{Pr}(3) = \\frac{1}{6} \\approx 0.167$", "$\\frac{1}{6} \\times 80$"]
+          ]
+        },
+        {
+          type: "note-box",
+          variant: "gold",
+          title: "📌 Non-Integer Expectations",
+          text: "Expected counts can be non-integers (decimals)! E.g. $13.3$ represents the long-run average per 80 rolls over many repeated sets of rolls."
+        }
+      ],
+      solution: [
+        {
+          type: "paragraph",
+          text: "**(a) Experimental Prediction:**\n$$\\text{Expected threes} = \\frac{1}{4} \\times 80 = 20 \\text{ threes}$$"
+        },
+        {
+          type: "paragraph",
+          text: "**(b) Theoretical Prediction:**\n$$\\text{Expected threes} = \\frac{1}{6} \\times 80 = \\frac{80}{6} = 13.\\dot{3} \\approx 13.3 \\text{ threes}$$"
+        },
+        {
+          type: "paragraph",
+          text: "**Comparison:** The experimental prediction (20) is higher than the theoretical prediction (13.3) because our small initial sample of 8 rolls happened to produce threes more frequently than average ($25\\%$ vs $16.7\\%$)."
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------------
+    // SLIDE 11: Cumulative Graph Simulation
+    // ------------------------------------------------------------------------
+    {
+      type: "board-task",
+      phase: "guided",
+      estimatedMinutes: 3,
+      title: "Simulation: The Effect of More Trials",
+      subtitle: "Adding 10, 100, or 1000 tosses to observe cumulative relative frequency",
+      studentAction: "Watch the graph: Does the cumulative probability line settle closer to 0.5 as trials increase?",
+      prompt: "We reuse our class coin results and add more tosses to observe how experimental probability behaves over large numbers of trials:",
+      workspaceContent: [
+        {
+          type: "simulation",
+          simType: "coin-cumulative",
+          title: "Cumulative Experimental Probability Graph"
+        }
+      ],
+      notes: [
+        {
+          type: "note-box",
+          variant: "gold",
+          title: "Teacher Checkpoint",
+          text: "Notice: More trials tend to improve estimates, but the graph does NOT move steadily closer or equal exactly 0.5 on every single toss."
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------------
     // SLIDE 12: Basketball Simulation
     // ------------------------------------------------------------------------
     {
       type: "board-task",
       phase: "guided",
-      estimatedMinutes: 4,
+      estimatedMinutes: 3,
       title: "Simulation: Basketball Free-Throw Experiment",
       subtitle: "Using a 6-sided die to model shots: 1–4 = SCORE, 5–6 = MISS",
       studentAction: "On whiteboards: calculate theoretical Pr(score) and expected scores in 60 attempts.",
@@ -432,28 +445,33 @@ export default {
           title: "Interactive Free-Throw Simulation"
         }
       ],
+      separateSolutions: true,
       solution: [
         {
           type: "paragraph",
-          text: "**Theoretical $\\text{Pr}(\\text{Score})$:**\n$$\\text{Pr}(\\text{Score}) = \\frac{4}{6} = \\frac{2}{3} \\approx 66.7\\%$$"
+          badgeTitle: "Part (a): Theoretical Pr(Score)",
+          revealStep: 1,
+          text: "**Theoretical $\\text{Pr}(\\text{Score})$:**\n4 scoring faces (1, 2, 3, 4) out of 6 possible faces on a fair die.\n$$\\text{Pr}(\\text{Score}) = \\frac{4}{6} = \\frac{2}{3} \\approx 66.7\\%$$"
         },
         {
           type: "paragraph",
-          text: "**Expected scores in 60 attempts:**\n$$\\text{Expected scores} = \\frac{2}{3} \\times 60 = 40 \\text{ scores}$$"
+          badgeTitle: "Part (b): Expected Scores in 60 Attempts",
+          revealStep: 2,
+          text: "**Expected scores in 60 attempts:**\n$$\\text{Expected scores} = \\text{Pr}(\\text{Score}) \\times n = \\frac{2}{3} \\times 60 = 40 \\text{ scores}$$"
         }
       ]
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 13: Independent Practice (Exercise 8I)
+    // SLIDE 13: Textbook Practice (Exercise 8I)
     // ------------------------------------------------------------------------
     {
       type: "practice",
       phase: "independent",
-      estimatedMinutes: 12,
-      timerMinutes: 10,
+      estimatedMinutes: 20,
+      timerMinutes: 20,
       title: "Independent Practice: Exercise 8I",
-      subtitle: "Complete questions in your exercise book. Use the timer below.",
+      subtitle: "Complete questions in your exercise book (20-minute timer)",
       tasks: [
         {
           title: "Supported Pathway",
@@ -462,16 +480,10 @@ export default {
             {
               type: "bullet-list",
               items: [
-                "**Q1:** Reading frequency tables and writing experimental probabilities as fractions.",
-                "**Q3(a–b):** Identifying total trials ($n$) vs event frequency for coin and spinner trials.",
-                "**Q4(a–b):** Calculating expected occurrences: $\\text{Expected} = \\text{Pr} \\times n$."
+                "**Q1:** Probabilities and predictions from spinner results.",
+                "**Q3(a–b):** Expected coin results and sample size.",
+                "**Q4(a–b):** Expected die results and chance variation."
               ]
-            }
-          ],
-          solution: [
-            {
-              type: "paragraph",
-              text: "Check your answers with the back of the textbook. Remember that the denominator in experimental probability is always the total number of trials conducted."
             }
           ]
         },
@@ -482,16 +494,12 @@ export default {
             {
               type: "bullet-list",
               items: [
-                "**Q1 & Q2:** Calculating probabilities and converting between fractions, decimals, and percentages.",
-                "**Q3 & Q4:** Complementary events: $\\text{Pr}(\\text{not } E) = 1 - \\text{Pr}(E)$ and predictions.",
-                "**Q6:** Comparing experimental results from small vs large experiments."
+                "**Q1:** Probabilities and predictions from spinner results.",
+                "**Q2:** Probabilities from television-viewing survey data.",
+                "**Q3:** Expected coin results and sample size.",
+                "**Q4:** Expected die results and chance variation.",
+                "**Q6:** Probabilities and predictions from car-colour data."
               ]
-            }
-          ],
-          solution: [
-            {
-              type: "paragraph",
-              text: "Core solutions: Ensure all fractions are simplified where required. Expected counts should clearly state units (e.g. 20 heads, 40 scores)."
             }
           ]
         },
@@ -502,15 +510,9 @@ export default {
             {
               type: "bullet-list",
               items: [
-                "**Q8:** Designing a simulation experiment with dice or cards to test an empirical claim.",
-                "**Q11:** Multi-stage reasoning, expected values with decimal answers, and evaluating sample bias."
+                "**Q8:** Estimate marble composition from repeated draws with replacement.",
+                "**Q11:** Judge probability statements and justify answers."
               ]
-            }
-          ],
-          solution: [
-            {
-              type: "paragraph",
-              text: "Challenge Q11: An expected value of $13.3$ means that if 80 trials were repeated many times, the average number of occurrences would be 13.3."
             }
           ]
         }
@@ -528,7 +530,7 @@ export default {
       subtitle: "Each statement below contains a mathematical mistake. Spacebar reveals the correction.",
       columns: [
         {
-          width: "33",
+          width: "third",
           title: "Claim 1: Unobserved Outcomes",
           blocks: [
             {
@@ -545,7 +547,7 @@ export default {
           ]
         },
         {
-          width: "33",
+          width: "third",
           title: "Claim 2: Proving Fairness",
           blocks: [
             {
@@ -562,7 +564,7 @@ export default {
           ]
         },
         {
-          width: "33",
+          width: "third",
           title: "Claim 3: Larger Experiments",
           blocks: [
             {
@@ -587,7 +589,7 @@ export default {
     {
       type: "exit-ticket",
       phase: "assessment",
-      estimatedMinutes: 4,
+      estimatedMinutes: 3,
       title: "Exit Ticket: Checking Understanding",
       subtitle: "Complete these questions in your workbook before the end of the lesson",
       questions: [

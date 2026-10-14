@@ -53,20 +53,32 @@ export const coinExperimentStore = {
     return this.getTotalClassHeads() + this.extraHeads;
   },
 
+  recordHistoryPoint(n, h) {
+    if (n <= 0) return;
+    const pr = h / n;
+    this.cumulativeHistory.push({ n, pr });
+  },
+
+  commitStudentResult(studentId, heads) {
+    if (this.students.length >= this.classSize) return false;
+    const clampedHeads = Math.max(0, Math.min(this.trialsPerStudent, heads));
+    this.students.push({
+      id: studentId || (this.students.length + 1),
+      heads: clampedHeads,
+      tails: this.trialsPerStudent - clampedHeads
+    });
+    this.recordHistoryPoint(this.getPooledTotalTosses(), this.getPooledTotalHeads());
+    this.notify();
+    return true;
+  },
+
   runStudent() {
     if (this.students.length >= this.classSize) return false;
     let heads = 0;
     for (let i = 0; i < this.trialsPerStudent; i++) {
       if (Math.random() < 0.5) heads++;
     }
-    this.students.push({
-      id: this.students.length + 1,
-      heads,
-      tails: this.trialsPerStudent - heads
-    });
-    this.rebuildHistory();
-    this.notify();
-    return true;
+    return this.commitStudentResult(this.students.length + 1, heads);
   },
 
   runClass() {
@@ -80,22 +92,19 @@ export const coinExperimentStore = {
         heads,
         tails: this.trialsPerStudent - heads
       });
+      this.recordHistoryPoint(this.getPooledTotalTosses(), this.getPooledTotalHeads());
     }
-    this.rebuildHistory();
     this.notify();
   },
 
   setClassSize(newSize) {
     const clamped = Math.max(5, Math.min(40, newSize));
     this.classSize = clamped;
-    if (this.students.length > clamped) {
-      this.students = this.students.slice(0, clamped);
-    }
-    this.rebuildHistory();
-    this.notify();
+    // Changing class size resets all results
+    this.resetAll();
   },
 
-  resetClass() {
+  resetAll() {
     this.students = [];
     this.extraTosses = 0;
     this.extraHeads = 0;
@@ -103,55 +112,45 @@ export const coinExperimentStore = {
     this.notify();
   },
 
+  resetClass() {
+    this.resetAll();
+  },
+
+  resetExtraTosses() {
+    this.resetAll();
+  },
+
   addExtraTosses(count) {
-    if (this.students.length === 0) {
-      // Auto-run class experiment if empty
-      this.runClass();
-    }
+    if (count <= 0) return;
 
+    const initialN = this.getPooledTotalTosses();
+    const initialH = this.getPooledTotalHeads();
+
+    // Intermediate sampling for smooth graphing on larger batches
+    const step = count >= 1000 ? 50 : (count >= 100 ? 10 : 1);
     let batchHeads = 0;
-    const stepSize = count >= 100 ? Math.max(5, Math.floor(count / 20)) : 1;
-    let accumulatedInBatch = 0;
 
-    for (let i = 0; i < count; i++) {
-      if (Math.random() < 0.5) {
-        batchHeads++;
-        accumulatedInBatch++;
-      }
-      // Record checkpoint points for smooth curve
-      if ((i + 1) % stepSize === 0 || i === count - 1) {
-        const currentTotalTosses = this.getTotalClassTosses() + this.extraTosses + (i + 1);
-        const currentTotalHeads = this.getTotalClassHeads() + this.extraHeads + batchHeads;
-        this.cumulativeHistory.push({
-          n: currentTotalTosses,
-          pr: currentTotalHeads / currentTotalTosses
-        });
+    for (let i = 1; i <= count; i++) {
+      if (Math.random() < 0.5) batchHeads++;
+      if (i % step === 0 || i === count) {
+        const currentN = initialN + i;
+        const currentH = initialH + batchHeads;
+        this.recordHistoryPoint(currentN, currentH);
       }
     }
 
     this.extraTosses += count;
     this.extraHeads += batchHeads;
-    this.notify();
-  },
 
-  resetExtraTosses() {
-    this.extraTosses = 0;
-    this.extraHeads = 0;
-    this.rebuildHistory();
-    this.notify();
-  },
+    // Strict invariant: final history point MUST match pooled totals exactly
+    const finalN = this.getPooledTotalTosses();
+    const finalH = this.getPooledTotalHeads();
+    const lastPt = this.cumulativeHistory[this.cumulativeHistory.length - 1];
+    if (!lastPt || lastPt.n !== finalN || Math.abs(lastPt.pr - (finalH / finalN)) > 1e-9) {
+      this.recordHistoryPoint(finalN, finalH);
+    }
 
-  rebuildHistory() {
-    this.cumulativeHistory = [];
-    let runningHeads = 0;
-    this.students.forEach((s, idx) => {
-      runningHeads += s.heads;
-      const runningTosses = (idx + 1) * this.trialsPerStudent;
-      this.cumulativeHistory.push({
-        n: runningTosses,
-        pr: runningHeads / runningTosses
-      });
-    });
+    this.notify();
   }
 };
 
@@ -173,12 +172,15 @@ export function renderCoinClassSimulation(block, revealClass = '') {
 
       <div class="coin-class-controls-bar">
         <div class="coin-size-group">
-          <label for="coinClassSizeInput"><strong>Class Size:</strong></label>
+          <label><strong>Class Size:</strong></label>
           <div class="coin-stepper">
             <button type="button" class="btn btn-sm btn-size-minus" title="Decrease class size">−</button>
             <span class="coin-size-display">25</span>
             <button type="button" class="btn btn-sm btn-size-plus" title="Increase class size">+</button>
           </div>
+          <span class="coin-size-note" style="font-size: 0.74rem; color: var(--text-muted); margin-left: 4px;">
+            (Changing size resets results)
+          </span>
         </div>
 
         <div class="coin-action-buttons">
@@ -187,6 +189,18 @@ export function renderCoinClassSimulation(block, revealClass = '') {
           <button type="button" class="btn btn-sm btn-reset-class">↺ Reset</button>
         </div>
       </div>
+
+      <!-- Inline confirmation dialog for class size changes when results exist -->
+      <div class="coin-size-confirm-bar" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; align-items: center; justify-content: space-between; gap: 8px;">
+        <span>⚠️ Changing class size to <strong class="coin-target-size"></strong> will reset all existing results (<strong class="coin-confirm-count"></strong> trials). Proceed?</span>
+        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+          <button type="button" class="btn btn-sm btn-confirm-proceed" style="background: #dc2626; color: #ffffff; padding: 2px 8px; font-size: 0.76rem;">Reset & Apply</button>
+          <button type="button" class="btn btn-sm btn-cancel-proceed" style="padding: 2px 8px; font-size: 0.76rem;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Live 20-Toss Animation Box -->
+      <div class="coin-toss-animation-box" style="display: none;"></div>
 
       <div class="coin-pooled-summary">
         <!-- Rendered dynamically in updateUI -->
@@ -208,14 +222,20 @@ export class CoinClassSimulation {
     this.el = element;
     this.config = config || {};
     this.unsubscribe = null;
+    this.pendingTargetSize = null;
 
-    if (this.config.defaultClassSize) {
+    // Set configured default size ONLY if no trials exist yet
+    if (this.config.defaultClassSize && coinExperimentStore.getPooledTotalTosses() === 0) {
       coinExperimentStore.classSize = this.config.defaultClassSize;
     }
 
     this.sizeDisplay = this.el.querySelector('.coin-size-display');
     this.btnMinus = this.el.querySelector('.btn-size-minus');
     this.btnPlus = this.el.querySelector('.btn-size-plus');
+    this.confirmBar = this.el.querySelector('.coin-size-confirm-bar');
+    this.btnConfirmProceed = this.el.querySelector('.btn-confirm-proceed');
+    this.btnCancelProceed = this.el.querySelector('.btn-cancel-proceed');
+
     this.btnRunOne = this.el.querySelector('.btn-run-one');
     this.btnRunAll = this.el.querySelector('.btn-run-all');
     this.btnReset = this.el.querySelector('.btn-reset-class');
@@ -223,9 +243,20 @@ export class CoinClassSimulation {
     this.chartContainer = this.el.querySelector('.coin-chart-container');
     this.ribbonEl = this.el.querySelector('.coin-students-ribbon');
 
+    this.animBox = this.el.querySelector('.coin-toss-animation-box');
+    this.activeAnimation = null;
+    this.isAnimating = false;
+
     this.initEvents();
     this.unsubscribe = coinExperimentStore.subscribe(() => this.updateUI());
     this.updateUI();
+  }
+
+  setControlsDisabled(disabled) {
+    if (this.btnRunOne) this.btnRunOne.disabled = disabled;
+    if (this.btnRunAll) this.btnRunAll.disabled = disabled;
+    if (this.btnMinus) this.btnMinus.disabled = disabled;
+    if (this.btnPlus) this.btnPlus.disabled = disabled;
   }
 
   initEvents() {
@@ -240,32 +271,252 @@ export class CoinClassSimulation {
 
     if (this.btnMinus) {
       this.btnMinus.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.setClassSize(coinExperimentStore.classSize - 1))
+        stopNav(e, () => {
+          if (!this.isAnimating) this.requestClassSizeChange(coinExperimentStore.classSize - 1);
+        })
       );
     }
 
     if (this.btnPlus) {
       this.btnPlus.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.setClassSize(coinExperimentStore.classSize + 1))
+        stopNav(e, () => {
+          if (!this.isAnimating) this.requestClassSizeChange(coinExperimentStore.classSize + 1);
+        })
+      );
+    }
+
+    if (this.btnConfirmProceed) {
+      this.btnConfirmProceed.addEventListener('click', (e) =>
+        stopNav(e, () => {
+          this.cancelActiveAnimation();
+          if (this.pendingTargetSize !== null) {
+            coinExperimentStore.setClassSize(this.pendingTargetSize);
+            this.pendingTargetSize = null;
+          }
+          if (this.confirmBar) {
+            this.confirmBar.style.display = 'none';
+          }
+        })
+      );
+    }
+
+    if (this.btnCancelProceed) {
+      this.btnCancelProceed.addEventListener('click', (e) =>
+        stopNav(e, () => {
+          this.pendingTargetSize = null;
+          if (this.confirmBar) {
+            this.confirmBar.style.display = 'none';
+          }
+        })
       );
     }
 
     if (this.btnRunOne) {
       this.btnRunOne.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.runStudent())
+        stopNav(e, () => this.runOneStudentAnimated())
       );
     }
 
     if (this.btnRunAll) {
       this.btnRunAll.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.runClass())
+        stopNav(e, () => {
+          if (!this.isAnimating) coinExperimentStore.runClass();
+        })
       );
     }
 
     if (this.btnReset) {
       this.btnReset.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.resetClass())
+        stopNav(e, () => this.handleReset())
       );
+    }
+  }
+
+  handleReset() {
+    this.cancelActiveAnimation();
+    this.pendingTargetSize = null;
+    if (this.confirmBar) {
+      this.confirmBar.style.display = 'none';
+    }
+    coinExperimentStore.resetAll();
+  }
+
+  runOneStudentAnimated() {
+    if (this.isAnimating) return;
+    if (coinExperimentStore.students.length >= coinExperimentStore.classSize) return;
+
+    this.isAnimating = true;
+    this.setControlsDisabled(true);
+
+    const trials = coinExperimentStore.trialsPerStudent;
+    const outcomes = [];
+    for (let i = 0; i < trials; i++) {
+      outcomes.push(Math.random() < 0.5 ? 1 : 0);
+    }
+    const finalHeads = outcomes.reduce((acc, v) => acc + v, 0);
+    const studentId = coinExperimentStore.students.length + 1;
+
+    this.activeAnimation = {
+      studentId,
+      outcomes,
+      finalHeads,
+      tossIndex: 0,
+      runningHeads: 0,
+      timerId: null
+    };
+
+    if (this.animBox) {
+      this.animBox.style.display = 'block';
+    }
+
+    const step = () => {
+      if (!this.activeAnimation) return;
+      const anim = this.activeAnimation;
+      const currentOutcome = anim.outcomes[anim.tossIndex];
+      if (currentOutcome === 1) {
+        anim.runningHeads++;
+      }
+      anim.tossIndex++;
+
+      this.renderAnimationProgress(anim, currentOutcome);
+
+      if (anim.tossIndex >= anim.outcomes.length) {
+        if (anim.timerId) {
+          clearInterval(anim.timerId);
+          anim.timerId = null;
+        }
+        setTimeout(() => {
+          this.commitAndStopActiveAnimation();
+        }, 150);
+      }
+    };
+
+    this.renderAnimationProgress(this.activeAnimation, null);
+    // 20 tosses over ~4 seconds (200ms per toss)
+    this.activeAnimation.timerId = setInterval(step, 200);
+  }
+
+  renderAnimationProgress(anim, latestOutcome) {
+    if (!this.animBox || !anim) return;
+    const { studentId, outcomes, tossIndex, runningHeads } = anim;
+    const totalTosses = outcomes.length;
+
+    let glyph = '🪙';
+    let outcomeText = 'Flipping fair coin...';
+    let badgeClass = 'waiting';
+
+    if (latestOutcome !== null) {
+      if (latestOutcome === 1) {
+        glyph = '🟡';
+        outcomeText = 'HEADS (+1)';
+        badgeClass = 'heads';
+      } else {
+        glyph = '⚪';
+        outcomeText = 'TAILS (+0)';
+        badgeClass = 'tails';
+      }
+    }
+
+    const chips = outcomes.slice(0, tossIndex).map((o, idx) => `
+      <span class="coin-anim-chip ${o === 1 ? 'heads' : 'tails'}" title="Toss ${idx + 1}: ${o === 1 ? 'Heads' : 'Tails'}">
+        ${o === 1 ? 'H' : 'T'}
+      </span>
+    `).join('');
+
+    const progressPct = ((tossIndex / totalTosses) * 100).toFixed(0);
+
+    this.animBox.innerHTML = `
+      <div class="coin-anim-card">
+        <div class="coin-anim-top-row">
+          <span class="coin-anim-student-label">
+            🧑‍🎓 <strong>Student ${studentId}:</strong> Tossing 20 independent coins...
+          </span>
+          <span class="coin-anim-counter">
+            Toss <strong>${tossIndex}</strong> of <strong>${totalTosses}</strong>
+          </span>
+        </div>
+
+        <div class="coin-anim-main-row">
+          <div class="coin-anim-visual ${badgeClass}">
+            <span class="coin-anim-glyph">${glyph}</span>
+            <span class="coin-anim-callout">${outcomeText}</span>
+          </div>
+
+          <div class="coin-anim-counts-box">
+            <div class="coin-anim-count-metric">
+              <span class="metric-label">Running Heads</span>
+              <span class="metric-value" style="color: var(--primary);"><strong>${runningHeads}</strong></span>
+            </div>
+            <div class="coin-anim-count-metric">
+              <span class="metric-label">Running Tails</span>
+              <span class="metric-value"><strong>${tossIndex - runningHeads}</strong></span>
+            </div>
+            <div class="coin-anim-count-metric">
+              <span class="metric-label">Expected</span>
+              <span class="metric-value" style="color: var(--text-muted);">10</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="coin-anim-progress-bar-wrap">
+          <div class="coin-anim-progress-bar-fill" style="width: ${progressPct}%;"></div>
+        </div>
+
+        <div class="coin-anim-history-strip">
+          ${chips || '<span style="font-size: 0.72rem; color: var(--text-muted); font-style: italic;">Starting coin toss...</span>'}
+        </div>
+      </div>
+    `;
+  }
+
+  commitAndStopActiveAnimation() {
+    if (!this.activeAnimation) return;
+    const { studentId, finalHeads, timerId } = this.activeAnimation;
+    if (timerId) {
+      clearInterval(timerId);
+    }
+    this.activeAnimation = null;
+    this.isAnimating = false;
+    if (this.animBox) {
+      this.animBox.style.display = 'none';
+      this.animBox.innerHTML = '';
+    }
+    this.setControlsDisabled(false);
+
+    coinExperimentStore.commitStudentResult(studentId, finalHeads);
+  }
+
+  cancelActiveAnimation() {
+    if (this.activeAnimation) {
+      if (this.activeAnimation.timerId) {
+        clearInterval(this.activeAnimation.timerId);
+      }
+      this.activeAnimation = null;
+    }
+    this.isAnimating = false;
+    if (this.animBox) {
+      this.animBox.style.display = 'none';
+      this.animBox.innerHTML = '';
+    }
+    this.setControlsDisabled(false);
+  }
+
+  requestClassSizeChange(targetSize) {
+    const clamped = Math.max(5, Math.min(40, targetSize));
+    if (clamped === coinExperimentStore.classSize) return;
+
+    const totalTrials = coinExperimentStore.getPooledTotalTosses();
+    if (totalTrials > 0) {
+      this.pendingTargetSize = clamped;
+      if (this.confirmBar) {
+        const targetSpan = this.confirmBar.querySelector('.coin-target-size');
+        const countSpan = this.confirmBar.querySelector('.coin-confirm-count');
+        if (targetSpan) targetSpan.textContent = String(clamped);
+        if (countSpan) countSpan.textContent = String(totalTrials);
+        this.confirmBar.style.display = 'flex';
+      }
+    } else {
+      coinExperimentStore.setClassSize(clamped);
     }
   }
 
@@ -273,9 +524,9 @@ export class CoinClassSimulation {
     const { classSize, students, trialsPerStudent } = coinExperimentStore;
     const totalTosses = coinExperimentStore.getTotalClassTosses();
     const totalHeads = coinExperimentStore.getTotalClassHeads();
-    const totalTails = totalTosses - totalHeads;
     const fraction = totalTosses > 0 ? totalHeads / totalTosses : 0;
-    const pct = (fraction * 100).toFixed(1);
+    const pct = totalTosses > 0 ? (fraction * 100).toFixed(1) : '0.0';
+    const diffPct = totalTosses > 0 ? Math.abs(Number(pct) - 50.0).toFixed(1) : '0.0';
 
     if (this.sizeDisplay) {
       this.sizeDisplay.textContent = String(classSize);
@@ -283,7 +534,7 @@ export class CoinClassSimulation {
 
     // 1. Pooled Summary Box
     if (this.summaryEl) {
-      const isComplete = students.length >= classSize;
+      const isComplete = students.length >= classSize && classSize > 0;
       const statusPill = isComplete
         ? `<span class="coin-badge-complete">✔ All ${classSize} Students Completed</span>`
         : `<span class="coin-badge-active">${students.length} of ${classSize} Students Tossed</span>`;
@@ -305,12 +556,15 @@ export class CoinClassSimulation {
             <span class="coin-stat-val" style="color: var(--accent-green); font-size: 1.15rem;">
               <strong>${totalHeads}/${totalTosses} = ${pct}%</strong>
             </span>
-            <span class="coin-stat-sub">Theoretical: 50.0%</span>
+            <span class="coin-stat-sub">Distance from 50.0%: ${diffPct}%</span>
           </div>
+        </div>
+        <div class="coin-reflection-prompt" style="margin-top: 6px; font-size: 0.8rem; color: var(--text-secondary); background: #f8fafc; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px 8px; text-align: center;">
+          Observed relative frequency: <strong>${pct}%</strong> (${diffPct}% from 50.0%). <em>Ask students: Do you consider this result close to 50%?</em>
         </div>
       ` : `
         <div class="coin-empty-prompt">
-          👉 Click <strong>Run 1 Student</strong> or <strong>Run Class</strong> to simulate ${trialsPerStudent} tosses each.
+          👉 Click <strong>Run 1 Student</strong> (20 tosses) or <strong>Run Class</strong> to simulate tosses.
         </div>
       `;
 
@@ -422,7 +676,7 @@ export class CoinClassSimulation {
     if (this.ribbonEl) {
       if (students.length === 0) {
         this.ribbonEl.innerHTML = `
-          <div class="coin-ribbon-empty">No student tosses recorded yet.</div>
+          <div class="coin-ribbon-empty" style="font-size: 0.8rem; color: var(--text-muted); padding: 4px;">No student tosses recorded yet.</div>
         `;
       } else {
         const chips = students.map((s) => {
@@ -452,7 +706,12 @@ export class CoinClassSimulation {
     }
   }
 
+  onSlideChange() {
+    this.commitAndStopActiveAnimation();
+  }
+
   destroy() {
+    this.commitAndStopActiveAnimation();
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
@@ -491,43 +750,38 @@ export class CoinSummaryWidget {
   updateUI() {
     if (!this.mountEl) return;
 
-    const { students, classSize, trialsPerStudent } = coinExperimentStore;
+    const { students, trialsPerStudent } = coinExperimentStore;
     const n = students.length;
-    const totalTosses = coinExperimentStore.getTotalClassTosses();
-    const totalHeads = coinExperimentStore.getTotalClassHeads();
+    const totalClassTosses = coinExperimentStore.getTotalClassTosses();
+    const totalClassHeads = coinExperimentStore.getTotalClassHeads();
+    const expectedTrials = n * trialsPerStudent;
     const expectedHeads = n * 10;
-    const fraction = totalTosses > 0 ? totalHeads / totalTosses : 0;
-    const pct = (fraction * 100).toFixed(1);
-    const diff = totalHeads - expectedHeads;
+    const fraction = totalClassTosses > 0 ? totalClassHeads / totalClassTosses : 0;
+    const pct = totalClassTosses > 0 ? (fraction * 100).toFixed(1) : '0.0';
+    const diff = totalClassHeads - expectedHeads;
     const diffFormatted = diff > 0 ? `+${diff}` : String(diff);
+    const diffPct = totalClassTosses > 0 ? Math.abs(Number(pct) - 50.0).toFixed(1) : '0.0';
 
     if (n === 0) {
-      this.mountEl.innerHTML = `
-        <div class="coin-disc-card empty-disc-card">
-          <div style="font-size: 1.6rem; margin-bottom: 6px;">🪙 👥</div>
-          <h4 style="font-size: 1.02rem; color: var(--primary); margin-bottom: 6px;">No Slide 3 Experiment Run Yet</h4>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
-            If you did not run the coin toss on Slide 3, you can run a sample class of 25 students right now:
+      this.mountEl.innerHTML = renderMathInText(`
+        <div class="coin-disc-card empty-disc-card" style="padding: 18px; text-align: center; background: var(--bg-muted); border-radius: 8px;">
+          <div style="font-size: 1.8rem; margin-bottom: 6px;">🪙 👥</div>
+          <h4 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 6px;">No Class Experiment Run Yet</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">
+            Navigate to <strong>Slide 3 (Do Now)</strong> to simulate coin tosses for individual students or the whole class.
           </p>
-          <button type="button" class="btn btn-sm btn-primary btn-disc-run-sample">
-            ⚡ Run Sample Class (25 Students)
-          </button>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">
+            Observed results, totals, and fractions will automatically display here once trials are run.
+          </p>
         </div>
-      `;
-
-      const btn = this.mountEl.querySelector('.btn-disc-run-sample');
-      if (btn) {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          btn.blur();
-          coinExperimentStore.runClass();
-        });
-      }
+      `);
       return;
     }
 
-    this.mountEl.innerHTML = `
+    const minHeads = Math.min(...students.map((s) => s.heads));
+    const maxHeads = Math.max(...students.map((s) => s.heads));
+
+    const htmlContent = `
       <div class="coin-disc-card">
         <div class="coin-disc-badge-row">
           <span class="coin-disc-badge">📊 Live Class Experiment Data</span>
@@ -546,24 +800,24 @@ export class CoinSummaryWidget {
             <tbody>
               <tr>
                 <td><strong>Expected per student</strong></td>
-                <td>$\\frac{1}{2} \\times 20 = 10$ heads</td>
-                <td>Ranges from ${Math.min(...students.map(s => s.heads))} to ${Math.max(...students.map(s => s.heads))}</td>
+                <td>$\\frac{1}{2} \\times 20 = 10\\text{ heads}$</td>
+                <td>Ranges from ${minHeads} to ${maxHeads} heads</td>
               </tr>
               <tr>
                 <td><strong>Total Trials ($20n$)</strong></td>
-                <td>$20 \\times ${n} = ${totalTosses}$</td>
-                <td><strong>${totalTosses} tosses</strong></td>
+                <td>$20 \\times ${n} = ${expectedTrials}$</td>
+                <td><strong>${totalClassTosses} tosses</strong></td>
               </tr>
               <tr>
                 <td><strong>Total Heads ($10n$)</strong></td>
                 <td>$10 \\times ${n} = ${expectedHeads}$</td>
-                <td style="color: var(--primary); font-weight: 700;"><strong>${totalHeads} heads</strong> (${diffFormatted})</td>
+                <td style="color: var(--primary); font-weight: 700;"><strong>${totalClassHeads} heads</strong> (${diffFormatted})</td>
               </tr>
               <tr>
                 <td><strong>Fraction landing heads</strong></td>
                 <td>$\\frac{1}{2} = 50.0\\%$</td>
                 <td style="color: var(--accent-green); font-weight: 700;">
-                  $\\frac{${totalHeads}}{${totalTosses}} = \\mathbf{${pct}\\%}$
+                  $\\frac{${totalClassHeads}}{${totalClassTosses}} = \\mathbf{${pct}\\%}$
                 </td>
               </tr>
             </tbody>
@@ -573,11 +827,14 @@ export class CoinSummaryWidget {
         <div class="coin-disc-takeaway">
           <span class="disc-takeaway-icon">💡</span>
           <span class="disc-takeaway-text">
-            <strong>Key Insight:</strong> Individual students varied widely, but when pooled together over <strong>${totalTosses} tosses</strong>, the class result of <strong>${pct}%</strong> is close to the theoretical 50%.
+            <strong>Discussion Point:</strong> Pooled across <strong>${totalClassTosses} tosses</strong>, the observed relative frequency of heads is <strong>${pct}%</strong> (a distance of <strong>${diffPct}%</strong> from 50.0%). Ask students: Do you consider this result close to $\\frac{1}{2}$? How does pooling trials across the whole class affect your estimate?
           </span>
         </div>
       </div>
     `;
+
+    // Render every dynamic formula in CoinSummaryWidget through the math renderer
+    this.mountEl.innerHTML = renderMathInText(htmlContent);
   }
 
   destroy() {
@@ -608,7 +865,7 @@ export function renderCumulativeCoinSimulation(block, revealClass = '') {
         <button type="button" class="btn btn-sm btn-primary btn-add-10">+10 Tosses</button>
         <button type="button" class="btn btn-sm btn-primary btn-add-100">⚡ +100 Tosses</button>
         <button type="button" class="btn btn-sm btn-primary btn-add-1000">🚀 +1000 Tosses</button>
-        <button type="button" class="btn btn-sm btn-reset-extra">↺ Reset Extra Tosses</button>
+        <button type="button" class="btn btn-sm btn-reset-all">↺ Reset</button>
       </div>
 
       <div class="cumul-stats-strip">
@@ -619,11 +876,8 @@ export function renderCumulativeCoinSimulation(block, revealClass = '') {
         <!-- Rendered in updateUI -->
       </div>
 
-      <div class="sim-insight-callout" style="margin-top: 8px;">
-        <span class="sim-insight-icon">💡</span>
-        <span class="sim-insight-text">
-          <strong>The Law of Large Numbers:</strong> As more trials are conducted, the experimental probability tends to settle closer to the theoretical 0.5. <em>Note: The path does not move steadily closer on every single toss, nor is it guaranteed to equal exactly 0.5!</em>
-        </span>
+      <div class="cumul-insight-wrap">
+        <!-- Rendered in updateUI -->
       </div>
     </div>
   `;
@@ -638,14 +892,10 @@ export class CumulativeCoinSimulation {
     this.btnAdd10 = this.el.querySelector('.btn-add-10');
     this.btnAdd100 = this.el.querySelector('.btn-add-100');
     this.btnAdd1000 = this.el.querySelector('.btn-add-1000');
-    this.btnReset = this.el.querySelector('.btn-reset-extra');
+    this.btnReset = this.el.querySelector('.btn-reset-all');
     this.statsStrip = this.el.querySelector('.cumul-stats-strip');
     this.graphContainer = this.el.querySelector('.cumul-graph-container');
-
-    // Ensure we start with base data
-    if (coinExperimentStore.students.length === 0) {
-      coinExperimentStore.runClass();
-    }
+    this.insightWrap = this.el.querySelector('.cumul-insight-wrap');
 
     this.initEvents();
     this.unsubscribe = coinExperimentStore.subscribe(() => this.updateUI());
@@ -682,7 +932,7 @@ export class CumulativeCoinSimulation {
 
     if (this.btnReset) {
       this.btnReset.addEventListener('click', (e) =>
-        stopNav(e, () => coinExperimentStore.resetExtraTosses())
+        stopNav(e, () => coinExperimentStore.resetAll())
       );
     }
   }
@@ -694,9 +944,11 @@ export class CumulativeCoinSimulation {
     const extraHeads = coinExperimentStore.extraHeads;
     const totalTosses = coinExperimentStore.getPooledTotalTosses();
     const totalHeads = coinExperimentStore.getPooledTotalHeads();
-    const currentPr = totalTosses > 0 ? totalHeads / totalTosses : 0.5;
-    const currentPct = (currentPr * 100).toFixed(2);
-    const diffFromHalf = Math.abs(currentPr - 0.5).toFixed(4);
+    const hasTosses = totalTosses > 0;
+    const currentPr = hasTosses ? totalHeads / totalTosses : 0;
+    const currentPct = hasTosses ? (currentPr * 100).toFixed(2) : '—';
+    const diffFromHalf = hasTosses ? Math.abs(currentPr - 0.5).toFixed(4) : '—';
+    const diffPct = hasTosses ? (Math.abs(currentPr - 0.5) * 100).toFixed(2) + '%' : '—';
 
     // 1. Stats Strip
     if (this.statsStrip) {
@@ -716,7 +968,9 @@ export class CumulativeCoinSimulation {
           </div>
           <div class="cumul-pill success">
             <span class="cumul-label">Cumulative Pr(H):</span>
-            <span style="color: var(--accent-green); font-weight: 700;"><strong>${currentPr.toFixed(4)} (${currentPct}%)</strong></span>
+            <span style="color: var(--accent-green); font-weight: 700;">
+              <strong>${hasTosses ? `${currentPr.toFixed(4)} (${currentPct}%)` : '—'}</strong>
+            </span>
           </div>
           <div class="cumul-pill">
             <span class="cumul-label">|Pr − 0.5|:</span>
@@ -738,15 +992,15 @@ export class CumulativeCoinSimulation {
       const plotHeight = svgHeight - padTop - padBottom;
 
       const history = coinExperimentStore.cumulativeHistory;
-      const maxN = Math.max(500, totalTosses);
+      const maxN = Math.max(50, totalTosses);
 
       // Y-axis ticks
       const yTicks = [
-        { val: 1.0, label: '1.0 (100%)' },
+        { val: 1.0, label: '1.0' },
         { val: 0.75, label: '0.75' },
-        { val: 0.5, label: '0.50 (50%)', isRef: true },
+        { val: 0.5, label: '0.50', isRef: true },
         { val: 0.25, label: '0.25' },
-        { val: 0.0, label: '0.0 (0%)' },
+        { val: 0.0, label: '0.0' },
       ];
 
       const gridLines = yTicks.map((t) => {
@@ -774,10 +1028,9 @@ export class CumulativeCoinSimulation {
 
       // Plot cumulative path
       let pathD = '';
-      let lastPixelX = padLeft;
-      let lastPixelY = yRefPixel;
+      let latestDot = '';
 
-      if (history.length > 0) {
+      if (hasTosses && history.length > 0) {
         history.forEach((pt, idx) => {
           const x = padLeft + (pt.n / maxN) * plotWidth;
           const clampedPr = Math.max(0, Math.min(1, pt.pr));
@@ -788,17 +1041,28 @@ export class CumulativeCoinSimulation {
           } else {
             pathD += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
           }
-          lastPixelX = x;
-          lastPixelY = y;
         });
+
+        // Final point must strictly match final pooled totals
+        const finalPoint = history[history.length - 1];
+        const lastX = padLeft + (finalPoint.n / maxN) * plotWidth;
+        const lastY = padTop + plotHeight * (1 - Math.max(0, Math.min(1, finalPoint.pr)));
+
+        latestDot = `
+          <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4.5" fill="#2563eb" stroke="#ffffff" stroke-width="2">
+            <title>Total trials: ${finalPoint.n}, Experimental Pr: ${(finalPoint.pr * 100).toFixed(1)}%</title>
+          </circle>
+        `;
       }
 
-      // Latest point dot
-      const latestDot = history.length > 0 ? `
-        <circle cx="${lastPixelX.toFixed(1)}" cy="${lastPixelY.toFixed(1)}" r="4" fill="#2563eb" stroke="#ffffff" stroke-width="1.5" />
+      // Empty state text if 0 trials
+      const emptyNote = !hasTosses ? `
+        <text x="${padLeft + plotWidth / 2}" y="${yRefPixel + 26}" font-size="10.5" fill="#94a3b8" text-anchor="middle">
+          No coin tosses recorded yet. Click +10, +100, or +1000 tosses to start.
+        </text>
       ` : '';
 
-      // X-axis ticks (e.g. 0, maxN/2, maxN)
+      // X-axis ticks
       const xMid = Math.round(maxN / 2);
       const xLabels = `
         <text x="${padLeft}" y="${svgHeight - 6}" font-size="8.5" fill="#64748b" text-anchor="start">0</text>
@@ -812,10 +1076,24 @@ export class CumulativeCoinSimulation {
           ${refBadge}
           <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${padLeft + plotWidth}" y2="${padTop + plotHeight}" stroke="#64748b" stroke-width="1.5" />
           <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + plotHeight}" stroke="#64748b" stroke-width="1.5" />
+          ${emptyNote}
           ${pathD ? `<path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />` : ''}
           ${latestDot}
           ${xLabels}
         </svg>
+      `;
+    }
+
+    // 3. Insight Callout
+    if (this.insightWrap) {
+      this.insightWrap.innerHTML = `
+        <div class="sim-insight-callout" style="margin-top: 8px;">
+          <span class="sim-insight-icon">💡</span>
+          <span class="sim-insight-text">
+            <strong>The Law of Large Numbers:</strong> As more trials are conducted, the experimental probability tends to settle closer to the theoretical 0.5.
+            ${hasTosses ? `Current observed relative frequency is <strong>${currentPct}%</strong> (a distance of <strong>${diffPct}</strong> from 50.0%). <em>Ask students: Is this result close to 0.5? Notice that the line fluctuates and does NOT move steadily closer on every single toss!</em>` : `<em>Click the buttons above to observe how the cumulative relative frequency behaves as trials increase.</em>`}
+          </span>
+        </div>
       `;
     }
   }
@@ -977,7 +1255,6 @@ export class BasketballSimulation {
     const total = this.scores + this.misses;
     const fraction = total > 0 ? this.scores / total : 0;
     const pct = (fraction * 100).toFixed(1);
-    const theoreticalFraction = 4 / 6; // 2/3
     const theoreticalPct = ((2 / 3) * 100).toFixed(1);
 
     // 1. Die Column
@@ -1029,9 +1306,9 @@ export class BasketballSimulation {
                 ${total > 0 ? `${this.scores}/${total} = ${pct}%` : '—'}
               </span>
             </div>
-            <div class="bball-comp-row">
-              <span class="bball-comp-label">Theoretical Probability:</span>
-              <span class="bball-comp-val"><strong>2/3 ≈ ${theoreticalPct}%</strong> (Expected in 60 shots: <strong>40</strong>)</span>
+            <div class="bball-comp-row" style="font-size: 0.78rem; color: var(--text-secondary);">
+              <span class="bball-comp-label">Die Mapping:</span>
+              <span class="bball-comp-val">Rolls 1–4 = Score (4 faces) | Rolls 5–6 = Miss (2 faces)</span>
             </div>
           </div>
         </div>
