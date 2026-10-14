@@ -19,6 +19,7 @@ export const coinExperimentStore = {
   students: [], // Array<{ id: number, heads: number, tails: number }>
   extraTosses: 0,
   extraHeads: 0,
+  showExpected: false,
   cumulativeHistory: [], // Array<{ n: number, pr: number }>
   listeners: new Set(),
 
@@ -106,6 +107,7 @@ export const coinExperimentStore = {
 
   resetAll() {
     this.students = [];
+    this.showExpected = false;
     this.extraTosses = 0;
     this.extraHeads = 0;
     this.cumulativeHistory = [];
@@ -160,7 +162,7 @@ export const coinExperimentStore = {
 
 export function renderCoinClassSimulation(block, revealClass = '') {
   const title = block.title || 'Class Coin Toss Experiment';
-  const subtitle = block.subtitle || '20 independent fair coin tosses per student (Expected: 10 Heads)';
+  const subtitle = block.subtitle || '20 independent fair coin tosses per student';
 
   return `
     <div class="sim-widget sim-coin-class-widget ${revealClass}" data-sim-type="coin-class">
@@ -186,6 +188,7 @@ export function renderCoinClassSimulation(block, revealClass = '') {
         <div class="coin-action-buttons">
           <button type="button" class="btn btn-sm btn-primary btn-run-one">▶ Run 1 Student</button>
           <button type="button" class="btn btn-sm btn-primary btn-run-all">⚡ Run Class</button>
+          <button type="button" class="btn btn-sm btn-show-expected">Show expected result</button>
           <button type="button" class="btn btn-sm btn-reset-class">↺ Reset</button>
         </div>
       </div>
@@ -239,6 +242,7 @@ export class CoinClassSimulation {
     this.btnRunOne = this.el.querySelector('.btn-run-one');
     this.btnRunAll = this.el.querySelector('.btn-run-all');
     this.btnReset = this.el.querySelector('.btn-reset-class');
+    this.btnShowExpected = this.el.querySelector('.btn-show-expected');
     this.summaryEl = this.el.querySelector('.coin-pooled-summary');
     this.chartContainer = this.el.querySelector('.coin-chart-container');
     this.ribbonEl = this.el.querySelector('.coin-students-ribbon');
@@ -268,6 +272,13 @@ export class CoinClassSimulation {
       }
       action();
     };
+
+    if (this.btnShowExpected) {
+      this.btnShowExpected.addEventListener('click', (e) => stopNav(e, () => {
+        coinExperimentStore.showExpected = !coinExperimentStore.showExpected;
+        coinExperimentStore.notify();
+      }));
+    }
 
     if (this.btnMinus) {
       this.btnMinus.addEventListener('click', (e) =>
@@ -362,16 +373,18 @@ export class CoinClassSimulation {
       finalHeads,
       tossIndex: 0,
       runningHeads: 0,
-      timerId: null
+      timerId: null,
+      completionTimerId: null
     };
 
     if (this.animBox) {
       this.animBox.style.display = 'block';
     }
 
+    // Capture the identity so stale callbacks cannot affect a later run.
+    const anim = this.activeAnimation;
     const step = () => {
-      if (!this.activeAnimation) return;
-      const anim = this.activeAnimation;
+      if (this.activeAnimation !== anim) return;
       const currentOutcome = anim.outcomes[anim.tossIndex];
       if (currentOutcome === 1) {
         anim.runningHeads++;
@@ -385,7 +398,8 @@ export class CoinClassSimulation {
           clearInterval(anim.timerId);
           anim.timerId = null;
         }
-        setTimeout(() => {
+        anim.completionTimerId = setTimeout(() => {
+          if (this.activeAnimation !== anim) return;
           this.commitAndStopActiveAnimation();
         }, 150);
       }
@@ -451,10 +465,10 @@ export class CoinClassSimulation {
               <span class="metric-label">Running Tails</span>
               <span class="metric-value"><strong>${tossIndex - runningHeads}</strong></span>
             </div>
-            <div class="coin-anim-count-metric">
+            ${coinExperimentStore.showExpected ? `<div class="coin-anim-count-metric">
               <span class="metric-label">Expected</span>
               <span class="metric-value" style="color: var(--text-muted);">10</span>
-            </div>
+            </div>` : ''}
           </div>
         </div>
 
@@ -471,10 +485,11 @@ export class CoinClassSimulation {
 
   commitAndStopActiveAnimation() {
     if (!this.activeAnimation) return;
-    const { studentId, finalHeads, timerId } = this.activeAnimation;
+    const { studentId, finalHeads, timerId, completionTimerId } = this.activeAnimation;
     if (timerId) {
       clearInterval(timerId);
     }
+    if (completionTimerId != null) clearTimeout(completionTimerId);
     this.activeAnimation = null;
     this.isAnimating = false;
     if (this.animBox) {
@@ -490,6 +505,9 @@ export class CoinClassSimulation {
     if (this.activeAnimation) {
       if (this.activeAnimation.timerId) {
         clearInterval(this.activeAnimation.timerId);
+      }
+      if (this.activeAnimation.completionTimerId != null) {
+        clearTimeout(this.activeAnimation.completionTimerId);
       }
       this.activeAnimation = null;
     }
@@ -528,6 +546,10 @@ export class CoinClassSimulation {
     const pct = totalTosses > 0 ? (fraction * 100).toFixed(1) : '0.0';
     const diffPct = totalTosses > 0 ? Math.abs(Number(pct) - 50.0).toFixed(1) : '0.0';
 
+    if (this.btnShowExpected) {
+      this.btnShowExpected.textContent = coinExperimentStore.showExpected ? 'Hide expected result' : 'Show expected result';
+      this.btnShowExpected.setAttribute('aria-pressed', String(coinExperimentStore.showExpected));
+    }
     if (this.sizeDisplay) {
       this.sizeDisplay.textContent = String(classSize);
     }
@@ -549,7 +571,7 @@ export class CoinClassSimulation {
           <div class="coin-stat-card">
             <span class="coin-stat-label">Total Heads</span>
             <span class="coin-stat-val" style="color: var(--primary);"><strong>${totalHeads}</strong></span>
-            <span class="coin-stat-sub">Expected: ${students.length * 10}</span>
+            ${coinExperimentStore.showExpected ? `<span class="coin-stat-sub">Expected: ${students.length * 10}</span>` : ''}
           </div>
           <div class="coin-stat-card">
             <span class="coin-stat-label">Experimental Pr(H)</span>
@@ -596,7 +618,7 @@ export class CoinClassSimulation {
       const gridTicks = [0, 5, 10, 15, 20];
       const gridLines = gridTicks.map((val) => {
         const y = padTop + plotHeight * (1 - val / yMax);
-        const isRef = val === 10;
+        const isRef = coinExperimentStore.showExpected && val === 10;
         return `
           <line x1="${padLeft}" y1="${y}" x2="${padLeft + plotWidth}" y2="${y}"
                 stroke="${isRef ? '#d97706' : '#e2e8f0'}"
@@ -620,7 +642,8 @@ export class CoinClassSimulation {
         const y = padTop + plotHeight - barH;
 
         let barColor = '#2563eb';
-        if (s.heads === 10) barColor = '#16a34a';
+        if (!coinExperimentStore.showExpected) barColor = '#2563eb';
+        else if (s.heads === 10) barColor = '#16a34a';
         else if (s.heads === 9 || s.heads === 11) barColor = '#3b82f6';
         else if (s.heads >= 7 && s.heads <= 13) barColor = '#d97706';
         else barColor = '#dc2626';
@@ -654,11 +677,11 @@ export class CoinClassSimulation {
           <svg class="coin-chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
             <!-- Gridlines -->
             ${gridLines}
-            <!-- Reference line label -->
-            <rect x="${padLeft + plotWidth - 110}" y="${yRefPixel - 14}" width="108" height="12" fill="#fffbeb" rx="3" stroke="#fef3c7" />
+            <!-- Reference line label appears after predictions. -->
+            ${coinExperimentStore.showExpected ? `<rect x="${padLeft + plotWidth - 110}" y="${yRefPixel - 14}" width="108" height="12" fill="#fffbeb" rx="3" stroke="#fef3c7" />
             <text x="${padLeft + plotWidth - 56}" y="${yRefPixel - 6}" font-size="8.5" fill="#b45309" font-weight="700" text-anchor="middle">
               Expected Line: 10 Heads
-            </text>
+            </text>` : ''}
             <!-- Bars -->
             ${emptyBars.join('')}
             ${bars}
@@ -683,11 +706,12 @@ export class CoinClassSimulation {
           const diff = s.heads - 10;
           const diffStr = diff > 0 ? `+${diff}` : String(diff);
           let badgeClass = 'badge-normal';
-          if (diff === 0) badgeClass = 'badge-exact';
+          if (!coinExperimentStore.showExpected) badgeClass = 'badge-normal';
+          else if (diff === 0) badgeClass = 'badge-exact';
           else if (Math.abs(diff) > 3) badgeClass = 'badge-far';
 
           return `
-            <span class="coin-student-chip ${badgeClass}" title="Student ${s.id}: ${s.heads} Heads (${diffStr} from 10)">
+            <span class="coin-student-chip ${badgeClass}" title="Student ${s.id}: ${s.heads} Heads${coinExperimentStore.showExpected ? ` (${diffStr} from 10)` : ''}">
               <strong>S${s.id}:</strong> ${s.heads}H
             </span>
           `;
@@ -696,7 +720,7 @@ export class CoinClassSimulation {
         this.ribbonEl.innerHTML = `
           <div class="coin-chips-header">
             <span><strong>Individual Student Heads Counts:</strong></span>
-            <span style="font-size: 0.74rem; color: var(--text-muted);">(Expected = 10 each)</span>
+            ${coinExperimentStore.showExpected ? '<span style="font-size: 0.74rem; color: var(--text-muted);">(Expected = 10 each)</span>' : ''}
           </div>
           <div class="coin-chips-scroll">
             ${chips}
@@ -763,7 +787,7 @@ export class CoinSummaryWidget {
     const diffPct = totalClassTosses > 0 ? Math.abs(Number(pct) - 50.0).toFixed(1) : '0.0';
 
     if (n === 0) {
-      this.mountEl.innerHTML = renderMathInText(`
+      this.mountEl.innerHTML = `
         <div class="coin-disc-card empty-disc-card" style="padding: 18px; text-align: center; background: var(--bg-muted); border-radius: 8px;">
           <div style="font-size: 1.8rem; margin-bottom: 6px;">🪙 👥</div>
           <h4 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 6px;">No Class Experiment Run Yet</h4>
@@ -774,7 +798,7 @@ export class CoinSummaryWidget {
             Observed results, totals, and fractions will automatically display here once trials are run.
           </p>
         </div>
-      `);
+      `;
       return;
     }
 
@@ -800,24 +824,24 @@ export class CoinSummaryWidget {
             <tbody>
               <tr>
                 <td><strong>Expected per student</strong></td>
-                <td>$\\frac{1}{2} \\times 20 = 10\\text{ heads}$</td>
+                <td>${renderMathInText(`$\\frac{1}{2} \\times 20 = 10\\text{ heads}$`)}</td>
                 <td>Ranges from ${minHeads} to ${maxHeads} heads</td>
               </tr>
               <tr>
-                <td><strong>Total Trials ($20n$)</strong></td>
-                <td>$20 \\times ${n} = ${expectedTrials}$</td>
+                <td><strong>Total Trials (${renderMathInText(`$20n$`)})</strong></td>
+                <td>${renderMathInText(`$20 \\times ${n} = ${expectedTrials}$`)}</td>
                 <td><strong>${totalClassTosses} tosses</strong></td>
               </tr>
               <tr>
-                <td><strong>Total Heads ($10n$)</strong></td>
-                <td>$10 \\times ${n} = ${expectedHeads}$</td>
+                <td><strong>Total Heads (${renderMathInText(`$10n$`)})</strong></td>
+                <td>${renderMathInText(`$10 \\times ${n} = ${expectedHeads}$`)}</td>
                 <td style="color: var(--primary); font-weight: 700;"><strong>${totalClassHeads} heads</strong> (${diffFormatted})</td>
               </tr>
               <tr>
                 <td><strong>Fraction landing heads</strong></td>
-                <td>$\\frac{1}{2} = 50.0\\%$</td>
+                <td>${renderMathInText(`$\\frac{1}{2} = 50.0\\%$`)}</td>
                 <td style="color: var(--accent-green); font-weight: 700;">
-                  $\\frac{${totalClassHeads}}{${totalClassTosses}} = \\mathbf{${pct}\\%}$
+                  ${renderMathInText(`$\\frac{${totalClassHeads}}{${totalClassTosses}} = \\mathbf{${pct}\\%}$`)}
                 </td>
               </tr>
             </tbody>
@@ -827,14 +851,14 @@ export class CoinSummaryWidget {
         <div class="coin-disc-takeaway">
           <span class="disc-takeaway-icon">💡</span>
           <span class="disc-takeaway-text">
-            <strong>Discussion Point:</strong> Pooled across <strong>${totalClassTosses} tosses</strong>, the observed relative frequency of heads is <strong>${pct}%</strong> (a distance of <strong>${diffPct}%</strong> from 50.0%). Ask students: Do you consider this result close to $\\frac{1}{2}$? How does pooling trials across the whole class affect your estimate?
+            <strong>Discussion Point:</strong> Pooled across <strong>${totalClassTosses} tosses</strong>, the observed relative frequency of heads is <strong>${pct}%</strong> (a distance of <strong>${diffPct} percentage points</strong> from 50.0%). Ask students: Do you consider this result close to ${renderMathInText(`$\\frac{1}{2}$`)}? How does pooling trials across the whole class affect your estimate?
           </span>
         </div>
       </div>
     `;
 
-    // Render every dynamic formula in CoinSummaryWidget through the math renderer
-    this.mountEl.innerHTML = renderMathInText(htmlContent);
+    // Structural HTML stays intact; individual formula fragments are rendered above.
+    this.mountEl.innerHTML = htmlContent;
   }
 
   destroy() {

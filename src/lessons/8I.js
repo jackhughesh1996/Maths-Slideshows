@@ -75,7 +75,7 @@ export default {
           answer: "$10$ heads ($\\text{Expected} = \\frac{1}{2} \\times 20 = 10$ heads)."
         },
         {
-          prompt: "Before running: Must everyone in the class get the exact same result (10 heads)?",
+          prompt: "Before running: Must everyone in the class get the same number of heads?",
           answer: "No. Individual results vary naturally by chance around 10 (e.g. 7, 9, 11, 14 heads)."
         },
         {
@@ -107,7 +107,7 @@ export default {
       estimatedMinutes: 2,
       title: "Discussing the Class Experiment",
       subtitle: "Comparing individual student variation with pooled classroom results",
-      studentAction: "Reflect: Why does pooling results give an estimate closer to 1/2 than individual tosses?",
+      studentAction: "Reflect: How does pooling more trials affect how close our estimate is likely to be to 1/2?",
       prompt: "Let us examine our class coin tossing experiment using theoretical expectations:",
       workspaceContent: [
         {
