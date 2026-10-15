@@ -14,6 +14,7 @@ import {
   CumulativeCoinSimulation,
   BasketballSimulation
 } from './experimentalSimulations.js';
+import { normalizeSimulationType } from './blockTypes.js';
 
 /**
  * Initialize all simulation widgets mounted inside the given container.
@@ -37,14 +38,15 @@ export function initSimulations(container) {
       return;
     }
 
-    const simType = config.simType || el.dataset.simType;
+    const rawSimType = config.simType || el.dataset.simType;
+    const simType = normalizeSimulationType(rawSimType);
     let widgetInstance = null;
 
-    if (simType === 'spinner' || simType === 'spinners') {
+    if (simType === 'spinner') {
       widgetInstance = new SpinnerSimulation(el, config);
-    } else if (simType === 'counter-bag' || simType === 'bag-draw') {
+    } else if (simType === 'counter-bag') {
       widgetInstance = new CounterBagSimulation(el, config);
-    } else if (simType === 'pen-draw' || simType === 'box-draw') {
+    } else if (simType === 'pen-draw') {
       widgetInstance = new PenDrawSimulation(el, config);
     } else if (simType === 'coin-class') {
       widgetInstance = new CoinClassSimulation(el, config);

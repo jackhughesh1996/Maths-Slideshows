@@ -6,6 +6,8 @@
  */
 
 import { renderMath, renderMathInText, escapeHtml } from './math.js';
+import { normalizeSlideType } from './slideTypes.js';
+import { normalizeSimulationType } from './blockTypes.js';
 import {
   renderCoinClassSimulation,
   renderCoinDiscussionSummary,
@@ -810,25 +812,27 @@ const renderDividedBarBlock = renderMeasuredBarBlock;
  * @returns {string}
  */
 function renderSimulationBlock(block, revealClass = '') {
-  const simType = block.simType || 'spinner';
+  const rawType = block.simType || 'spinner';
+  const simType = normalizeSimulationType(rawType);
 
-  if (simType === 'spinner' || simType === 'spinners') {
-    return renderSpinnerSimulationBlock(block, revealClass);
-  } else if (simType === 'counter-bag' || simType === 'bag-draw') {
-    return renderCounterBagSimulationBlock(block, revealClass);
-  } else if (simType === 'pen-draw' || simType === 'box-draw') {
-    return renderPenDrawSimulationBlock(block, revealClass);
-  } else if (simType === 'coin-class') {
-    return renderCoinClassSimulation(block, revealClass);
-  } else if (simType === 'coin-summary') {
-    return renderCoinDiscussionSummary(block, revealClass);
-  } else if (simType === 'coin-cumulative') {
-    return renderCumulativeCoinSimulation(block, revealClass);
-  } else if (simType === 'basketball') {
-    return renderBasketballSimulation(block, revealClass);
+  switch (simType) {
+    case 'spinner':
+      return renderSpinnerSimulationBlock(block, revealClass);
+    case 'counter-bag':
+      return renderCounterBagSimulationBlock(block, revealClass);
+    case 'pen-draw':
+      return renderPenDrawSimulationBlock(block, revealClass);
+    case 'coin-class':
+      return renderCoinClassSimulation(block, revealClass);
+    case 'coin-summary':
+      return renderCoinDiscussionSummary(block, revealClass);
+    case 'coin-cumulative':
+      return renderCumulativeCoinSimulation(block, revealClass);
+    case 'basketball':
+      return renderBasketballSimulation(block, revealClass);
+    default:
+      return '';
   }
-
-  return '';
 }
 
 /**
@@ -1065,19 +1069,21 @@ export function renderSlide(slide, index) {
     section.dataset.timerMinutes = String(slide.timerMinutes);
   }
 
+  const rawType = slide.type || 'notes';
+  const canonicalType = normalizeSlideType(rawType);
+
   // Phase badge class mapping
   let phaseClass = 'phase-concept';
-  const type = slide.type || 'notes';
-  if (['worked-example', 'i-do'].includes(type)) phaseClass = 'phase-i-do';
-  else if (['we-do', 'board-task'].includes(type)) phaseClass = 'phase-we-do';
-  else if (['practice', 'you-do'].includes(type)) phaseClass = 'phase-you-do';
-  else if (['exit-ticket', 'assessment'].includes(type)) phaseClass = 'phase-assess';
+  if (canonicalType === 'worked-example') phaseClass = 'phase-i-do';
+  else if (['we-do', 'board-task'].includes(canonicalType)) phaseClass = 'phase-we-do';
+  else if (canonicalType === 'practice') phaseClass = 'phase-you-do';
+  else if (['exit-ticket', 'assessment'].includes(canonicalType)) phaseClass = 'phase-assess';
 
-  const phaseLabel = slide.phase || getPhaseDefaultLabel(type);
+  const phaseLabel = slide.phase || getPhaseDefaultLabel(rawType);
 
   // 1. Slide Header
   let headerHtml = '';
-  if (type !== 'title') {
+  if (canonicalType !== 'title') {
     headerHtml = `
       <div class="slide-header">
         <span class="slide-phase-badge ${phaseClass}">${escapeHtml(phaseLabel)}</span>
@@ -1087,10 +1093,10 @@ export function renderSlide(slide, index) {
     `;
   }
 
-  // 2. Slide Body (determined by slide.type)
+  // 2. Slide Body (determined by canonicalType)
   let bodyHtml = '';
 
-  switch (type) {
+  switch (canonicalType) {
     case 'title':
       bodyHtml = renderTitleSlide(slide);
       break;
@@ -1136,13 +1142,16 @@ export function renderSlide(slide, index) {
 }
 
 function getPhaseDefaultLabel(type) {
-  switch (type) {
+  // Preserve distinct default labels for we-do vs board-task
+  if (type === 'we-do') return 'We Do — Guided Practice';
+  if (type === 'board-task') return 'We Do — Board Task';
+
+  const canonical = normalizeSlideType(type);
+  switch (canonical) {
     case 'title': return 'Introduction';
     case 'learning': return 'Lesson Intentions';
     case 'do-now': return 'Do Now — Warm Up';
     case 'worked-example': return 'I Do — Worked Example';
-    case 'we-do': return 'We Do — Guided Practice';
-    case 'board-task': return 'We Do — Board Task';
     case 'comparison': return 'Analysis & Comparison';
     case 'practice': return 'You Do — Independent Practice';
     case 'exit-ticket': return 'Check for Understanding';

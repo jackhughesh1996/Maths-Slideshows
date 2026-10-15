@@ -184,9 +184,16 @@ export function generateAllLaunchers() {
     const distPath = path.join(distDownloadsDir, fileName);
     const publicPath = path.join(publicDownloadsDir, fileName);
 
-    // Refuse to overwrite manually authored or unmarked files at expected filenames
+    // Refuse to overwrite manually authored or unmarked non-empty files at expected filenames
     for (const targetPath of [distPath, publicPath]) {
       if (fs.existsSync(targetPath)) {
+        const stats = fs.statSync(targetPath);
+        if (stats.size === 0) {
+          // Remove zero-byte files that correspond to known generated launcher outputs
+          fs.unlinkSync(targetPath);
+          continue;
+        }
+
         const existingContent = fs.readFileSync(targetPath, 'utf-8');
         if (!existingContent.includes(LAUNCHER_GENERATOR_IDENTIFIER)) {
           throw new Error(
