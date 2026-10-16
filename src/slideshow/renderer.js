@@ -99,7 +99,8 @@ export function renderBlock(block) {
           if (h && typeof h === 'object') {
             const revClass = h.reveal ? ' class="reveal-item"' : '';
             const stepAttr = h.revealStep !== undefined ? ` data-reveal-step="${h.revealStep}"` : '';
-            return `<th><span${revClass}${stepAttr}>${renderMathInText(h.text || '')}</span></th>`;
+            const hText = (h.text !== undefined && h.text !== null) ? String(h.text) : '';
+            return `<th><span${revClass}${stepAttr}>${renderMathInText(hText)}</span></th>`;
           }
           return `<th>${renderMathInText(String(h))}</th>`;
         })
@@ -111,7 +112,8 @@ export function renderBlock(block) {
               if (c && typeof c === 'object') {
                 const revClass = c.reveal ? ' class="reveal-item"' : '';
                 const stepAttr = c.revealStep !== undefined ? ` data-reveal-step="${c.revealStep}"` : '';
-                return `<td><span${revClass}${stepAttr}>${renderMathInText(c.text || '')}</span></td>`;
+                const cText = (c.text !== undefined && c.text !== null) ? String(c.text) : '';
+                return `<td><span${revClass}${stepAttr}>${renderMathInText(cText)}</span></td>`;
               }
               return `<td>${renderMathInText(String(c))}</td>`;
             })
@@ -1373,8 +1375,21 @@ function renderDoNowSlide(slide) {
 }
 
 function renderNotesSlide(slide) {
-  if (slide.columns) {
-    return slide.columns
+  const hasColumns = Array.isArray(slide.columns) && slide.columns.length > 0;
+  const hasContent = Array.isArray(slide.content) && slide.content.length > 0;
+
+  let contentHtml = '';
+  if (hasContent) {
+    contentHtml = `
+      <div class="card col-full">
+        ${renderBlocks(slide.content)}
+      </div>
+    `;
+  }
+
+  let columnsHtml = '';
+  if (hasColumns) {
+    columnsHtml = slide.columns
       .map((col) => {
         const widthClass = col.width ? `col-${col.width}` : 'col-half';
         return `
@@ -1387,11 +1402,15 @@ function renderNotesSlide(slide) {
       .join('');
   }
 
-  return `
-    <div class="card col-full">
-      ${renderBlocks(slide.content || [])}
-    </div>
-  `;
+  if (!hasColumns && !hasContent) {
+    return `
+      <div class="card col-full">
+        ${renderBlocks(slide.content || [])}
+      </div>
+    `;
+  }
+
+  return contentHtml + columnsHtml;
 }
 
 function renderWorkedExampleSlide(slide) {
@@ -1554,11 +1573,13 @@ function renderPracticeSlide(slide) {
 
 function renderExitTicketSlide(slide) {
   const checks = (slide.questions || [])
-    .map((q, idx) => `
+    .map((q, idx) => {
+      const promptText = (q.prompt && String(q.prompt).trim() !== '') ? q.prompt : (q.question || '');
+      return `
       <div class="card col-half" style="display:flex; flex-direction:column; justify-content:space-between;">
         <div>
           <h3 class="card-title">Question ${idx + 1}</h3>
-          <p style="font-size: 1rem; line-height: 1.5; margin-bottom: 12px;">${renderMathInText(q.prompt)}</p>
+          <p style="font-size: 1rem; line-height: 1.5; margin-bottom: 12px;">${renderMathInText(promptText)}</p>
           ${q.blocks ? renderBlocks(q.blocks) : ''}
         </div>
         <div class="reveal-item solution-container" style="margin-top: 14px;">
@@ -1566,7 +1587,8 @@ function renderExitTicketSlide(slide) {
           ${q.solution ? renderBlocks(q.solution) : ''}
         </div>
       </div>
-    `)
+    `;
+    })
     .join('');
 
   return checks;

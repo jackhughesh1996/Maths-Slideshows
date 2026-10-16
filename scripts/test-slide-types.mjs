@@ -301,6 +301,62 @@ test('we-do and board-task preserve distinct default labels and board task layou
   assert.ok(renderedBoardTask.innerHTML.includes('We Do — Board Task'), 'board-task default label must be "We Do — Board Task"');
 });
 
+test('renderNotesSlide handles content-only, empty columns with content, columns-only and combined content', () => {
+  // 1. Content-only
+  const slideContentOnly = {
+    type: 'notes',
+    title: 'Content Only Notes',
+    content: [{ type: 'paragraph', text: 'Notes content only text' }]
+  };
+  const htmlContentOnly = renderSlide(slideContentOnly, 0).innerHTML;
+  assert.ok(htmlContentOnly.includes('Notes content only text'), 'Content-only notes must render content');
+  assert.ok(htmlContentOnly.includes('col-full'), 'Content-only notes must use col-full card');
+  assert.ok(!htmlContentOnly.includes('col-half'), 'Content-only notes must not render half columns');
+
+  // 2. Empty columns with content (`columns: []`)
+  const slideEmptyCols = {
+    type: 'notes',
+    title: 'Empty Columns Notes',
+    columns: [],
+    content: [{ type: 'paragraph', text: 'Content with empty columns array' }]
+  };
+  const htmlEmptyCols = renderSlide(slideEmptyCols, 0).innerHTML;
+  assert.ok(htmlEmptyCols.includes('Content with empty columns array'), 'Notes slide with empty columns array and non-empty content must render content instead of rendering nothing');
+  assert.ok(htmlEmptyCols.includes('col-full'), 'Must render full width card for content');
+
+  // 3. Columns-only
+  const slideColsOnly = {
+    type: 'notes',
+    title: 'Columns Only Notes',
+    columns: [
+      { title: 'Column A', width: '60', blocks: [{ type: 'paragraph', text: 'Col A text' }] },
+      { title: 'Column B', width: '40', blocks: [{ type: 'paragraph', text: 'Col B text' }] }
+    ]
+  };
+  const htmlColsOnly = renderSlide(slideColsOnly, 0).innerHTML;
+  assert.ok(htmlColsOnly.includes('Column A'), 'Columns-only notes must render column title');
+  assert.ok(htmlColsOnly.includes('Col A text'), 'Columns-only notes must render column blocks');
+  assert.ok(htmlColsOnly.includes('col-60'), 'Columns-only notes must preserve column width col-60');
+  assert.ok(htmlColsOnly.includes('col-40'), 'Columns-only notes must preserve column width col-40');
+  assert.ok(!htmlColsOnly.includes('col-full'), 'Columns-only notes without content must not render col-full card');
+
+  // 4. Combined content and columns
+  const slideCombined = {
+    type: 'notes',
+    title: 'Combined Notes',
+    content: [{ type: 'paragraph', text: 'Top instruction content' }],
+    columns: [
+      { title: 'Left Col', blocks: [{ type: 'paragraph', text: 'Left text' }] }
+    ]
+  };
+  const htmlCombined = renderSlide(slideCombined, 0).innerHTML;
+  assert.ok(htmlCombined.includes('Top instruction content'), 'Combined notes must render content');
+  assert.ok(htmlCombined.includes('Left Col'), 'Combined notes must render columns');
+  assert.ok(htmlCombined.indexOf('Top instruction content') < htmlCombined.indexOf('Left Col'), 'Content must appear before columns in combined notes');
+  assert.ok(htmlCombined.includes('col-full'), 'Combined notes must include full width content card');
+  assert.ok(htmlCombined.includes('col-half'), 'Combined notes columns default to col-half when width is omitted');
+});
+
 // ---------------------------------------------------------------------------
 // 4. Slide Structure and Schema Validation Regression Tests
 // ---------------------------------------------------------------------------
@@ -787,4 +843,91 @@ test('strictly validates learning, summary, and title slide structures', () => {
   assert.ok(resT.errors.some((e) => e.includes("'overview' must be a string")));
   assert.ok(resT.errors.some((e) => e.includes("'topics' must be an array of strings")));
 });
+
+test('renderExitTicketSlide correctly renders canonical, legacy, precedence, and solution reveal containers', () => {
+  // 1. A canonical question
+  const slideCanonical = {
+    type: 'exit-ticket',
+    title: 'Exit Ticket Canonical',
+    questions: [
+      { prompt: 'Canonical exit question text $x = 5$', solution: [{ type: 'paragraph', text: 'Solution canonical' }] }
+    ]
+  };
+  const htmlCanonical = renderSlide(slideCanonical, 0).innerHTML;
+  assert.ok(htmlCanonical.includes('Canonical exit question text'), 'Rendered HTML must contain canonical prompt');
+
+  // 2. A legacy question
+  const slideLegacy = {
+    type: 'exit-ticket',
+    title: 'Exit Ticket Legacy',
+    questions: [
+      { question: 'Legacy exit question text $y = 10$', solution: [{ type: 'paragraph', text: 'Solution legacy' }] }
+    ]
+  };
+  const htmlLegacy = renderSlide(slideLegacy, 0).innerHTML;
+  assert.ok(htmlLegacy.includes('Legacy exit question text'), 'Rendered HTML must contain legacy question text');
+
+  // 3. Both properties supplied, with canonical taking precedence
+  const slideBoth = {
+    type: 'exit-ticket',
+    title: 'Exit Ticket Precedence',
+    questions: [
+      { prompt: 'Canonical takes precedence', question: 'Legacy ignored', solution: [{ type: 'paragraph', text: 'Solution both' }] }
+    ]
+  };
+  const htmlBoth = renderSlide(slideBoth, 0).innerHTML;
+  assert.ok(htmlBoth.includes('Canonical takes precedence'), 'Canonical prompt must take precedence');
+  assert.ok(!htmlBoth.includes('Legacy ignored'), 'Legacy question must be ignored when canonical prompt is present');
+
+  // 4. An existing solution retaining its reveal container
+  assert.ok(htmlCanonical.includes('reveal-item solution-container'), 'Solution container must retain reveal-item class');
+  assert.ok(htmlCanonical.includes('✔ Answer'), 'Solution container must include Answer badge');
+  assert.ok(htmlCanonical.includes('Solution canonical'), 'Solution content must be rendered');
+});
+
+test('table renderer preserves numeric zero, empty text, ordinary strings, and reveal settings in headers and cells', () => {
+  const slide = {
+    type: 'notes',
+    title: 'Table Regression Test',
+    content: [
+      {
+        type: 'table',
+        headers: [
+          { text: 0 },                  // 1. Numeric zero in a header
+          { text: 'Ordinary Header' }     // 4. An ordinary string
+        ],
+        rows: [
+          [
+            { text: 0 },                  // 2. Numeric zero in a cell
+            { text: '' }                  // 3. Empty text
+          ],
+          [
+            { text: 'Ordinary Cell' },    // 4. An ordinary string
+            { text: 0, reveal: true, revealStep: 2 } // 5. A table cell with existing reveal settings
+          ]
+        ]
+      }
+    ]
+  };
+
+  const html = renderSlide(slide, 0).innerHTML;
+
+  // 1. Numeric zero in a header
+  assert.ok(html.includes('<th><span>0</span></th>'), 'Header must preserve numeric zero');
+
+  // 2. Numeric zero in a cell
+  assert.ok(html.includes('<td><span>0</span></td>'), 'Cell must preserve numeric zero');
+
+  // 3. Empty text
+  assert.ok(html.includes('<td><span></span></td>') || html.includes('<td><span ></span></td>'), 'Cell must preserve empty text');
+
+  // 4. An ordinary string
+  assert.ok(html.includes('Ordinary Header'), 'Header must preserve ordinary string');
+  assert.ok(html.includes('Ordinary Cell'), 'Cell must preserve ordinary string');
+
+  // 5. A table cell with existing reveal settings
+  assert.ok(html.includes('class="reveal-item"'), 'Cell with reveal: true must include reveal-item class');
+  assert.ok(html.includes('data-reveal-step="2"'), 'Cell with revealStep: 2 must include data-reveal-step attribute');
+});
+
 
