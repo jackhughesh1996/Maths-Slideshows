@@ -275,9 +275,9 @@ test('accepts valid simulation aliases: spinners, bag-draw, box-draw', () => {
     title: 'Simulation Aliases Slide',
     questions: [{ prompt: 'Warm-up question', answer: 'Warm-up answer' }],
     sidebarNotes: [
-      { type: 'simulation', simType: 'spinners' },
-      { type: 'simulation', simType: 'bag-draw' },
-      { type: 'simulation', simType: 'box-draw' }
+      { type: 'simulation', simType: 'spinners', spinners: [{ sectors: [{ label: 'A', angle: 360 }] }] },
+      { type: 'simulation', simType: 'bag-draw', items: [{ label: 'A', count: 1 }] },
+      { type: 'simulation', simType: 'box-draw', items: [{ label: 'A', count: 0 }] }
     ]
   });
 
@@ -596,3 +596,246 @@ test('validates all registered lessons from manifest without errors', async () =
   }
 });
 
+
+function validateGraphBlock(block) {
+  return validateLesson(makeLesson({
+    type: 'notes',
+    title: 'Nested graph validation',
+    content: [block]
+  }), { silent: true });
+}
+
+const nestedGraphCases = [
+  { type: 'sector-graph', key: 'items', numbers: ['amount', 'fraction', 'angle'], required: ['amount', 'fraction'], strings: ['color'] },
+  ...['categories', 'items'].map((key) => ({
+    type: 'sector-construction', key, numbers: ['value', 'amount', 'angle'],
+    required: ['value', 'amount', 'angle', 'fraction'], strings: ['calculation', 'color']
+  })),
+  ...['measured-bar', 'divided-bar'].flatMap((type) => ['categories', 'items'].map((key) => ({
+    type, key, numbers: ['value', 'amount', 'length', 'fraction'],
+    required: ['value', 'amount', 'length', 'fraction'], strings: ['color']
+  })))
+];
+
+for (const { type, key, numbers, required, strings } of nestedGraphCases) {
+  test(`${type}.${key} accepts numeric alternatives, zeros and optional strings`, () => {
+    for (const prop of required) {
+      for (const value of [0, 0.25, -1]) {
+        const result = validateGraphBlock({ type, [key]: [{ label: 'A', [prop]: value }] });
+        assert.equal(result.valid, true, `${prop}=${value}: ${result.errors.join('; ')}`);
+      }
+    }
+    const item = { label: 'A', ...Object.fromEntries(numbers.map((prop) => [prop, 0])),
+      ...Object.fromEntries(strings.map((prop) => [prop, ''])) };
+    const result = validateGraphBlock({ type, [key]: [item] });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  });
+
+  test(`${type}.${key} rejects non-finite numbers and invalid nested field types`, () => {
+    for (const prop of numbers) {
+      for (const value of [NaN, Infinity, -Infinity, '1', '', null, true, {}, []]) {
+        const result = validateGraphBlock({ type, [key]: [{ label: 'A', [required[0]]: 1, [prop]: value }] });
+        assert.equal(result.valid, false, `${prop}=${String(value)} must fail`);
+        assert.ok(result.errors.some((error) => error.includes('slide.content[0]') &&
+          error.includes('Item [0]') && error.includes(`'${prop}' must be a finite number`)), result.errors.join('; '));
+      }
+    }
+    for (const prop of strings) {
+      for (const value of [0, null, false, {}, []]) {
+        const result = validateGraphBlock({ type, [key]: [{ label: 'A', [required[0]]: 1, [prop]: value }] });
+        assert.equal(result.valid, false);
+        assert.ok(result.errors.some((error) => error.includes('Item [0]') &&
+          error.includes(`'${prop}' must be a string`)), result.errors.join('; '));
+      }
+    }
+    for (const item of [null, [], 'A', 0]) {
+      const result = validateGraphBlock({ type, [key]: [item] });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((error) => error.includes('Item [0]') && error.includes('must be an object')));
+    }
+    const missingLabel = validateGraphBlock({ type, [key]: [{ [required[0]]: 0 }] });
+    assert.equal(missingLabel.valid, false);
+    const missingValue = validateGraphBlock({ type, [key]: [{ label: 'A' }] });
+    assert.equal(missingValue.valid, false);
+  });
+}
+
+for (const key of ['categories', 'items']) {
+  test(`sector-construction.${key} accepts LaTeX fractions and rejects invalid fractions`, () => {
+    for (const fraction of [0, 0.5, String.raw`\frac{1}{2}`]) {
+      const result = validateGraphBlock({ type: 'sector-construction', [key]: [{ label: 'A', fraction }] });
+      assert.equal(result.valid, true, result.errors.join('; '));
+    }
+    for (const fraction of [NaN, Infinity, -Infinity, '', '   ', null, false, [], {}]) {
+      const result = validateGraphBlock({ type: 'sector-construction', [key]: [{ label: 'A', fraction }] });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((error) => error.includes('Item [0]') &&
+        error.includes("'fraction' must be a finite number or non-empty LaTeX string")), result.errors.join('; '));
+    }
+  });
+}
+
+test('sector-construction validates tableHeaders and nested notes without requiring optional fields', () => {
+  const block = { type: 'sector-construction', categories: [{ label: 'A', value: 0 }] };
+  for (const extras of [{}, { tableHeaders: [], notes: [] }, {
+    tableHeaders: ['Category', '$x$', ''],
+    notes: [{ type: 'solution', blocks: [{ type: 'paragraph', text: 'Valid note', reveal: true }] }]
+  }]) {
+    const result = validateGraphBlock({ ...block, ...extras });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  }
+  for (const tableHeaders of ['Heading', null, {}, [0], [null], [[]], [{}]]) {
+    const result = validateGraphBlock({ ...block, tableHeaders });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((error) => error.includes('tableHeaders')), result.errors.join('; '));
+  }
+  for (const notes of ['Note', null, {}, { type: 'paragraph', text: 'Not an array' }]) {
+    const result = validateGraphBlock({ ...block, notes });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((error) => error.includes("'notes' must be an array of blocks")));
+  }
+  for (const note of [null, 'Note', [], { type: 'paragraph', text: 0 }, { type: 'paragraf', text: 'Typo' },
+    { type: 'solution', blocks: [{ type: 'formula', latex: 0 }] }]) {
+    const result = validateGraphBlock({ ...block, notes: [note] });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((error) => error.includes('slide.content[0].notes[0]')), result.errors.join('; '));
+  }
+});
+
+function validateSimulation(simType, config = {}) {
+  return validateGraphBlock({ type: 'simulation', simType, ...config });
+}
+
+function assertSimulationError(simType, config, errorPath) {
+  const result = validateSimulation(simType, config);
+  assert.equal(result.valid, false, `${simType} must reject ${errorPath}`);
+  assert.ok(result.errors.some((error) => error.includes(`[slide.content[0].${errorPath}]`)), result.errors.join('; '));
+}
+
+for (const simType of ['spinner', 'spinners']) {
+  test(`${simType} accepts spinner metadata, finite angles and optional sector strings`, () => {
+    for (const angle of [0, 90, 360, 0.5]) {
+      const result = validateSimulation(simType, { spinners: [{
+        id: 'spinner1', name: 'Spinner 1', badge: 'Fair', expected: 'Expected outcome',
+        sectors: [{ label: 'Red', angle, color: '#dc2626', term: 'Likely' }, { label: 'Blue', angle: 0 }]
+      }] });
+      assert.equal(result.valid, true, result.errors.join('; '));
+    }
+  });
+
+  test(`${simType} rejects malformed spinners and sectors with precise paths`, () => {
+    for (const spinners of [undefined, null, {}, 'spinners', []]) {
+      assertSimulationError(simType, { spinners }, 'spinners');
+    }
+    for (const spinner of [null, [], 'spinner', 1]) {
+      assertSimulationError(simType, { spinners: [spinner] }, 'spinners[0]');
+    }
+    for (const sectors of [undefined, null, {}, 'sectors', []]) {
+      assertSimulationError(simType, { spinners: [{ sectors }] }, 'spinners[0].sectors');
+    }
+    for (const sector of [null, [], 'sector', 1]) {
+      assertSimulationError(simType, { spinners: [{ sectors: [sector] }] }, 'spinners[0].sectors[0]');
+    }
+    for (const angle of [undefined, null, NaN, Infinity, -Infinity, '90', {}, [], true]) {
+      assertSimulationError(simType, { spinners: [{ sectors: [{ label: 'A', angle }] }] }, 'spinners[0].sectors[0].angle');
+    }
+    for (const label of [undefined, null, '', '  ', 0, [], {}]) {
+      assertSimulationError(simType, { spinners: [{ sectors: [{ label, angle: 90 }] }] }, 'spinners[0].sectors[0].label');
+    }
+    for (const prop of ['color', 'term']) {
+      for (const value of [null, 0, false, [], {}]) {
+        assertSimulationError(simType, { spinners: [{ sectors: [{ label: 'A', angle: 90, [prop]: value }] }] }, `spinners[0].sectors[0].${prop}`);
+      }
+    }
+    for (const prop of ['id', 'name', 'badge', 'expected']) {
+      for (const value of [null, 0, false, [], {}]) {
+        assertSimulationError(simType, { spinners: [{ [prop]: value, sectors: [{ label: 'A', angle: 90 }] }] }, `spinners[0].${prop}`);
+      }
+    }
+    assertSimulationError(simType, { spinners: [{ sectors: [{ label: 'A', angle: 90 }], sectorz: [] }] }, 'spinners[0].sectorz');
+    assertSimulationError(simType, { spinners: [{ sectors: [{ label: 'A', angle: 90, colour: 'red' }] }] }, 'spinners[0].sectors[0].colour');
+  });
+}
+
+for (const simType of ['counter-bag', 'bag-draw', 'pen-draw', 'box-draw']) {
+  test(`${simType} accepts draw items including zero counts`, () => {
+    const result = validateSimulation(simType, { items: [
+      { label: 'Red', count: 5, color: '#dc2626', term: 'Likely' },
+      { label: 'Impossible', count: 0 },
+      { label: 'Empty optional strings', count: 1, color: '', term: '' }
+    ] });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  });
+
+  test(`${simType} rejects malformed items and fields with precise paths`, () => {
+    for (const items of [undefined, null, 'items', {}, []]) {
+      assertSimulationError(simType, { items }, 'items');
+    }
+    for (const item of [null, [], 'item', 1]) {
+      assertSimulationError(simType, { items: [item] }, 'items[0]');
+    }
+    for (const label of [undefined, null, '', '  ', 0, [], {}]) {
+      assertSimulationError(simType, { items: [{ label, count: 1 }] }, 'items[0].label');
+    }
+    for (const count of [undefined, null, -1, 0.5, NaN, Infinity, -Infinity, '1', true, [], {}]) {
+      assertSimulationError(simType, { items: [{ label: 'A', count }] }, 'items[0].count');
+    }
+    for (const prop of ['color', 'term']) {
+      for (const value of [null, 0, false, [], {}]) {
+        assertSimulationError(simType, { items: [{ label: 'A', count: 1, [prop]: value }] }, `items[0].${prop}`);
+      }
+    }
+    assertSimulationError(simType, { items: [{ label: 'A', count: 1, colour: 'red' }] }, 'items[0].colour');
+  });
+}
+
+test('shared simulation fields reject non-finite and incorrectly typed values', () => {
+  for (const simType of ['spinner', 'counter-bag', 'pen-draw', 'coin-class', 'coin-summary', 'coin-cumulative', 'basketball']) {
+    const config = simType === 'spinner'
+      ? { spinners: [{ sectors: [{ label: 'A', angle: 360 }] }] }
+      : ['counter-bag', 'pen-draw'].includes(simType) ? { items: [{ label: 'A', count: 0 }] } : {};
+    const valid = validateSimulation(simType, { ...config, title: '', subtitle: '', expected: '', badge: '',
+      totalSpins: 0, defaultClassSize: 25, trialsPerStudent: 20 });
+    assert.equal(valid.valid, true, valid.errors.join('; '));
+    for (const prop of ['totalSpins', 'defaultClassSize', 'trialsPerStudent']) {
+      for (const value of [NaN, Infinity, -Infinity, '20', null, true, [], {}]) {
+        assertSimulationError(simType, { ...config, [prop]: value }, prop);
+      }
+    }
+    for (const prop of ['defaultClassSize', 'trialsPerStudent']) {
+      for (const value of [0, -1]) {
+        assert.equal(validateSimulation(simType, { ...config, [prop]: value }).valid, false);
+      }
+      assert.equal(validateSimulation(simType, { ...config, [prop]: 1.5 }).valid, true, 'Preserve positive-number format');
+    }
+    for (const prop of ['title', 'subtitle', 'expected', 'badge']) {
+      assert.equal(validateSimulation(simType, { ...config, [prop]: {} }).valid, false);
+    }
+  }
+});
+
+test('coin and basketball simulations do not require spinner or draw configuration', () => {
+  for (const simType of ['coin-class', 'coin-summary', 'coin-cumulative', 'basketball']) {
+    const result = validateSimulation(simType);
+    assert.equal(result.valid, true, result.errors.join('; '));
+  }
+});
+
+test('existing 8G spinner, counter bag and pen draw configurations validate with their aliases', async () => {
+  const { default: lesson } = await import('../src/lessons/8G.js');
+  const simulations = [];
+  function collect(value) {
+    if (!value || typeof value !== 'object') return;
+    if (value.type === 'simulation') simulations.push(value);
+    Object.values(value).forEach(collect);
+  }
+  collect(lesson);
+  assert.deepEqual(simulations.map((block) => block.simType).sort(), ['counter-bag', 'pen-draw', 'spinner']);
+  for (const block of simulations) {
+    const alias = { spinner: 'spinners', 'counter-bag': 'bag-draw', 'pen-draw': 'box-draw' }[block.simType];
+    for (const simType of [block.simType, alias]) {
+      const result = validateGraphBlock({ ...block, simType });
+      assert.equal(result.valid, true, result.errors.join('; '));
+    }
+  }
+});
