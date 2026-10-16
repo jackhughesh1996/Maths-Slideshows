@@ -16,7 +16,8 @@ import {
   isSupportedBlockType,
   normalizeBlockType,
   SUPPORTED_SIMULATION_TYPES,
-  isSupportedSimulationType
+  isSupportedSimulationType,
+  normalizeSimulationType
 } from './blockTypes.js';
 
 export const SUPPORTED_NOTE_VARIANTS = Object.freeze(new Set([
@@ -1007,7 +1008,7 @@ export function validateLesson(lesson, options = {}) {
         } else {
           const allowedItemProps = new Set(['label', 'amount', 'fraction', 'color', 'angle']);
           block.items.forEach((item, itIdx) => {
-            if (!item || typeof item !== 'object') {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) {
               errors.push(`${blockDesc} Item [${itIdx}]: Sector graph item must be an object.`);
               return;
             }
@@ -1021,6 +1022,16 @@ export function validateLesson(lesson, options = {}) {
             }
             if (item.amount === undefined && item.fraction === undefined) {
               errors.push(`${blockDesc} Item [${itIdx}]: Sector graph item requires an 'amount' or 'fraction' value.`);
+            }
+            for (const prop of ['amount', 'fraction', 'angle']) {
+              if (item[prop] !== undefined && !Number.isFinite(item[prop])) {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a finite number.`);
+              }
+            }
+            for (const prop of ['color']) {
+              if (item[prop] !== undefined && typeof item[prop] !== 'string') {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a string.`);
+              }
             }
           });
         }
@@ -1044,7 +1055,7 @@ export function validateLesson(lesson, options = {}) {
         } else {
           const allowedCatProps = new Set(['label', 'value', 'amount', 'fraction', 'calculation', 'angle', 'color']);
           items.forEach((item, itIdx) => {
-            if (!item || typeof item !== 'object') {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) {
               errors.push(`${blockDesc} Item [${itIdx}]: Sector construction item must be an object.`);
               return;
             }
@@ -1058,6 +1069,20 @@ export function validateLesson(lesson, options = {}) {
             }
             if (item.amount === undefined && item.fraction === undefined && item.value === undefined && item.angle === undefined) {
               errors.push(`${blockDesc} Item [${itIdx}]: Sector construction item requires a 'value', 'amount', 'fraction', or 'angle' value.`);
+            }
+            for (const prop of ['value', 'amount', 'angle']) {
+              if (item[prop] !== undefined && !Number.isFinite(item[prop])) {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a finite number.`);
+              }
+            }
+            if (item.fraction !== undefined && !Number.isFinite(item.fraction) &&
+                !(typeof item.fraction === 'string' && item.fraction.trim())) {
+              errors.push(`${blockDesc} Item [${itIdx}]: 'fraction' must be a finite number or non-empty LaTeX string.`);
+            }
+            for (const prop of ['calculation', 'color']) {
+              if (item[prop] !== undefined && typeof item[prop] !== 'string') {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a string.`);
+              }
             }
           });
         }
@@ -1074,8 +1099,19 @@ export function validateLesson(lesson, options = {}) {
         if (block.showTable !== undefined && typeof block.showTable !== 'boolean') {
           errors.push(`${blockDesc}: Sector construction 'showTable' must be a boolean.`);
         }
-        if (block.tableHeaders !== undefined && !Array.isArray(block.tableHeaders)) {
-          errors.push(`${blockDesc}: Sector construction 'tableHeaders' must be an array.`);
+        if (block.tableHeaders !== undefined) {
+          if (!Array.isArray(block.tableHeaders)) {
+            errors.push(`${blockDesc}: Sector construction 'tableHeaders' must be an array of strings.`);
+          } else {
+            block.tableHeaders.forEach((header, hIdx) => {
+              if (typeof header !== 'string') {
+                errors.push(`${blockDesc} tableHeaders[${hIdx}]: Header must be a string.`);
+              }
+            });
+          }
+        }
+        if (block.notes !== undefined && !Array.isArray(block.notes)) {
+          errors.push(`${blockDesc}: Sector construction 'notes' must be an array of blocks.`);
         }
         if (block.check !== undefined && typeof block.check !== 'string') {
           errors.push(`${blockDesc}: Sector construction 'check' must be a string.`);
@@ -1099,7 +1135,7 @@ export function validateLesson(lesson, options = {}) {
         } else {
           const allowedBarItemProps = new Set(['label', 'value', 'amount', 'length', 'fraction', 'color']);
           items.forEach((item, itIdx) => {
-            if (!item || typeof item !== 'object') {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) {
               errors.push(`${blockDesc} Item [${itIdx}]: ${bType} item must be an object.`);
               return;
             }
@@ -1113,6 +1149,16 @@ export function validateLesson(lesson, options = {}) {
             }
             if (item.amount === undefined && item.fraction === undefined && item.value === undefined && item.length === undefined) {
               errors.push(`${blockDesc} Item [${itIdx}]: ${bType} item requires a 'value', 'amount', 'length', or 'fraction' value.`);
+            }
+            for (const prop of ['value', 'amount', 'length', 'fraction']) {
+              if (item[prop] !== undefined && !Number.isFinite(item[prop])) {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a finite number.`);
+              }
+            }
+            for (const prop of ['color']) {
+              if (item[prop] !== undefined && typeof item[prop] !== 'string') {
+                errors.push(`${blockDesc} Item [${itIdx}]: '${prop}' must be a string.`);
+              }
             }
           });
         }
@@ -1190,6 +1236,80 @@ export function validateLesson(lesson, options = {}) {
             `${slidePrefix} [${path}] (simulation): Unsupported simulation type '${block.simType}'. Supported simulation types: ${Array.from(SUPPORTED_SIMULATION_TYPES).join(', ')}.`
           );
         }
+        const simType = normalizeSimulationType(block.simType);
+        const nestedError = (nestedPath, message) => {
+          errors.push(`${slidePrefix} [${nestedPath}] (simulation): ${message}`);
+        };
+        const validateObject = (value, nestedPath, allowedProps) => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            nestedError(nestedPath, 'Expected an object.');
+            return false;
+          }
+          for (const prop of Object.keys(value)) {
+            if (!allowedProps.includes(prop)) {
+              nestedError(`${nestedPath}.${prop}`, `Unknown simulation property '${prop}'.`);
+            }
+          }
+          return true;
+        };
+        const validateStrings = (value, nestedPath, props) => {
+          for (const prop of props) {
+            if (value[prop] !== undefined && typeof value[prop] !== 'string') {
+              nestedError(`${nestedPath}.${prop}`, 'Must be a string.');
+            }
+          }
+        };
+        const validateLabel = (value, nestedPath) => {
+          if (typeof value.label !== 'string' || !value.label.trim()) {
+            nestedError(`${nestedPath}.label`, 'Must be a non-empty string.');
+          }
+        };
+
+        if (simType === 'spinner') {
+          if (!Array.isArray(block.spinners) || block.spinners.length === 0) {
+            nestedError(`${path}.spinners`, 'Spinner simulation requires a non-empty array.');
+          } else {
+            block.spinners.forEach((spinner, spinnerIdx) => {
+              const spinnerPath = `${path}.spinners[${spinnerIdx}]`;
+              if (!validateObject(spinner, spinnerPath, ['id', 'name', 'badge', 'expected', 'sectors'])) return;
+              validateStrings(spinner, spinnerPath, ['id', 'name', 'badge', 'expected']);
+              if (!Array.isArray(spinner.sectors) || spinner.sectors.length === 0) {
+                nestedError(`${spinnerPath}.sectors`, 'Spinner requires a non-empty array.');
+              } else {
+                spinner.sectors.forEach((sector, sectorIdx) => {
+                  const sectorPath = `${spinnerPath}.sectors[${sectorIdx}]`;
+                  if (!validateObject(sector, sectorPath, ['label', 'angle', 'color', 'term'])) return;
+                  validateLabel(sector, sectorPath);
+                  if (!Number.isFinite(sector.angle)) {
+                    nestedError(`${sectorPath}.angle`, 'Must be a finite number.');
+                  }
+                  validateStrings(sector, sectorPath, ['color', 'term']);
+                });
+              }
+            });
+          }
+        }
+        if (simType === 'counter-bag' || simType === 'pen-draw') {
+          if (!Array.isArray(block.items) || block.items.length === 0) {
+            nestedError(`${path}.items`, 'Draw simulation requires a non-empty array.');
+          } else {
+            block.items.forEach((item, itemIdx) => {
+              const itemPath = `${path}.items[${itemIdx}]`;
+              if (!validateObject(item, itemPath, ['label', 'count', 'color', 'term'])) return;
+              validateLabel(item, itemPath);
+              if (!Number.isInteger(item.count) || item.count < 0) {
+                nestedError(`${itemPath}.count`, 'Must be a non-negative integer.');
+              }
+              validateStrings(item, itemPath, ['color', 'term']);
+            });
+          }
+        }
+        if (block.totalSpins !== undefined && !Number.isFinite(block.totalSpins)) {
+          nestedError(`${path}.totalSpins`, 'Must be a finite number.');
+        }
+        if (block.badge !== undefined && typeof block.badge !== 'string') {
+          nestedError(`${path}.badge`, 'Must be a string.');
+        }
         if (block.title !== undefined && typeof block.title !== 'string') {
           errors.push(`${blockDesc}: Simulation 'title' must be a string.`);
         }
@@ -1205,11 +1325,11 @@ export function validateLesson(lesson, options = {}) {
         if (block.spinners !== undefined && !Array.isArray(block.spinners)) {
           errors.push(`${blockDesc}: Simulation 'spinners' must be an array.`);
         }
-        if (block.defaultClassSize !== undefined && (typeof block.defaultClassSize !== 'number' || isNaN(block.defaultClassSize) || block.defaultClassSize <= 0)) {
-          errors.push(`${blockDesc}: Simulation 'defaultClassSize' must be a positive number.`);
+        if (block.defaultClassSize !== undefined && (!Number.isFinite(block.defaultClassSize) || block.defaultClassSize <= 0)) {
+          nestedError(`${path}.defaultClassSize`, 'Must be a finite positive number.');
         }
-        if (block.trialsPerStudent !== undefined && (typeof block.trialsPerStudent !== 'number' || isNaN(block.trialsPerStudent) || block.trialsPerStudent <= 0)) {
-          errors.push(`${blockDesc}: Simulation 'trialsPerStudent' must be a positive number.`);
+        if (block.trialsPerStudent !== undefined && (!Number.isFinite(block.trialsPerStudent) || block.trialsPerStudent <= 0)) {
+          nestedError(`${path}.trialsPerStudent`, 'Must be a finite positive number.');
         }
       }
     });
