@@ -1526,6 +1526,11 @@ function renderComparisonSlide(slide) {
 }
 
 function renderPracticeSlide(slide) {
+  const content = Array.isArray(slide.content) && slide.content.length > 0 ? `
+    <div class="card col-full">
+      ${renderBlocks(slide.content)}
+    </div>
+  ` : '';
   const tasks = (slide.tasks || [])
     .map((task) => `
       <div class="card col-third" style="display:flex; flex-direction:column; justify-content:space-between;">
@@ -1544,7 +1549,7 @@ function renderPracticeSlide(slide) {
     `)
     .join('');
 
-  return tasks;
+  return content + tasks;
 }
 
 function renderExitTicketSlide(slide) {

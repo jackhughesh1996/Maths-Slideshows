@@ -224,6 +224,54 @@ test('you-do renders practice layout and phase-you-do badge without mutating sli
   assert.equal(slide.type, 'you-do', 'Rendering must NOT mutate original slide.type');
 });
 
+test('practice renders content-only blocks in a full-width card', () => {
+  const html = renderSlide({
+    type: 'practice', title: 'Content practice',
+    content: [{ type: 'paragraph', text: 'Complete workbook questions.', reveal: true }]
+  }, 0).innerHTML;
+
+  assert.match(html, /<div class="card col-full">\s*<p[^>]*>Complete workbook questions\.<\/p>\s*<\/div>/);
+  assert.ok(html.includes('reveal-item'), 'Content blocks preserve their reveal markup');
+  assert.ok(!html.includes('card col-third'), 'Content-only slides have no task cards');
+});
+
+test('practice renders tasks without an empty content card', () => {
+  for (const content of [undefined, []]) {
+    const html = renderSlide({
+      type: 'practice', title: 'Task practice', content,
+      tasks: [{ title: 'Task one', prompt: 'Calculate 2 + 2',
+        solution: [{ type: 'paragraph', text: 'Four' }] }]
+    }, 0).innerHTML;
+
+    assert.ok(!html.includes('card col-full'), 'Absent or empty content adds no card');
+    assert.match(html, /class="card col-third" style="display:flex; flex-direction:column; justify-content:space-between;"/);
+    assert.ok(html.includes('Task one'));
+    assert.ok(html.includes('Calculate 2 + 2'));
+    assert.match(html, /class="reveal-item solution-container" style="margin-top: 12px;"/);
+    assert.ok(html.includes('<span class="solution-badge">✔ Solution</span>'));
+    assert.ok(html.includes('Four'));
+  }
+});
+
+test('practice renders content before unchanged task cards when both are present', () => {
+  const slide = {
+    type: 'practice', title: 'Combined practice',
+    tasks: [{ title: 'Task two', prompt: 'Calculate 3 + 3',
+      blocks: [{ type: 'paragraph', text: 'Show working.' }],
+      solution: [{ type: 'paragraph', text: 'Six' }] }]
+  };
+  const tasksOnly = renderSlide(slide, 0).innerHTML;
+  const combined = renderSlide({ ...slide,
+    content: [{ type: 'paragraph', text: 'Read these instructions first.' }]
+  }, 0).innerHTML;
+
+  assert.match(combined, /<div class="card col-full">\s*<p[^>]*>Read these instructions first\.<\/p>\s*<\/div>/);
+  assert.ok(combined.indexOf('Read these instructions first.') < combined.indexOf('card col-third'));
+  assert.equal(combined.slice(combined.indexOf('<div class="card col-third"')),
+    tasksOnly.slice(tasksOnly.indexOf('<div class="card col-third"')),
+    'Task cards, solutions and reveal markup remain identical');
+});
+
 test('we-do and board-task preserve distinct default labels and board task layout', () => {
   const weDoSlide = {
     type: 'we-do',
