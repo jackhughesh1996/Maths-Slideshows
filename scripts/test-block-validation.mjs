@@ -20,7 +20,7 @@ import {
   isSupportedSimulationType
 } from '../src/slideshow/blockTypes.js';
 
-import { validateLesson } from '../src/slideshow/validator.js';
+import { validateLesson, SUPPORTED_NOTE_VARIANTS } from '../src/slideshow/validator.js';
 
 // ---------------------------------------------------------------------------
 // 1. Shared Definitions and Aliases Tests
@@ -253,8 +253,9 @@ test('rejects misspelled block type inside graph notes', () => {
 
 test('rejects unknown or misspelled simulation types with property path', () => {
   const lesson = makeLesson({
-    type: 'notes',
+    type: 'do-now',
     title: 'Simulation Slide',
+    questions: [{ prompt: 'Warm-up question', answer: 'Warm-up answer' }],
     sidebarNotes: [
       { type: 'simulation', simType: 'spinnr' }
     ]
@@ -270,8 +271,9 @@ test('rejects unknown or misspelled simulation types with property path', () => 
 
 test('accepts valid simulation aliases: spinners, bag-draw, box-draw', () => {
   const lesson = makeLesson({
-    type: 'notes',
+    type: 'do-now',
     title: 'Simulation Aliases Slide',
+    questions: [{ prompt: 'Warm-up question', answer: 'Warm-up answer' }],
     sidebarNotes: [
       { type: 'simulation', simType: 'spinners' },
       { type: 'simulation', simType: 'bag-draw' },
@@ -403,6 +405,183 @@ test('rejects invalid non-object entries in block containers with path', () => {
   assert.equal(res.valid, false);
   assert.ok(res.errors.some((e) => e.includes('slide.rightBlocks[0]') && e.includes('Invalid block entry')));
   assert.ok(res.errors.some((e) => e.includes('slide.rightBlocks[1]') && e.includes('Invalid block entry')));
+});
+
+test('rejects misspelled property "varient" on note-box with actionable guidance', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Misspelled Varient Test',
+    content: [
+      { type: 'note-box', varient: 'gold', text: 'Important note' }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  const err = res.errors.find((e) => e.includes('slide.content[0]') && e.includes('varient'));
+  assert.ok(err, 'Should find error mentioning varient in slide.content[0]');
+  assert.ok(err.includes("Unknown or unexpected block property 'varient' (did you mean 'variant'?)"));
+});
+
+test('rejects invalid note variants and non-string variant values while accepting supported variants', () => {
+  const lessonInvalidVariant = makeLesson({
+    type: 'notes',
+    title: 'Invalid Note Variant Test',
+    content: [
+      { type: 'note-box', variant: 'purple', text: 'Purple note' },
+      { type: 'note-box', variant: 123, text: 'Numeric variant note' }
+    ]
+  });
+  const res = validateLesson(lessonInvalidVariant, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes('slide.content[0]') && e.includes("Unsupported note-box variant 'purple'")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[1]') && e.includes("'variant' must be a string")));
+
+  // Valid note variants should all pass
+  for (const variant of SUPPORTED_NOTE_VARIANTS) {
+    const validLesson = makeLesson({
+      type: 'notes',
+      title: `${variant} Note Test`,
+      content: [
+        { type: 'note-box', variant, text: `${variant} text` }
+      ]
+    });
+    const validRes = validateLesson(validLesson, { silent: true });
+    assert.equal(validRes.valid, true, `Variant '${variant}' must be accepted`);
+  }
+});
+
+test('rejects unequal table row widths matching headers count', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Unequal Table Rows Test',
+    content: [
+      {
+        type: 'table',
+        headers: ['Col A', 'Col B', 'Col C'],
+        rows: [
+          ['1', '2', '3'],
+          ['4', '5'],          // too short (2 cells vs 3)
+          ['6', '7', '8', '9'] // too long (4 cells vs 3)
+        ]
+      }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  const errShort = res.errors.find((e) => e.includes('Row [1]') && e.includes('Unequal table row width'));
+  const errLong = res.errors.find((e) => e.includes('Row [2]') && e.includes('Unequal table row width'));
+  assert.ok(errShort, 'Should detect Row [1] being too short');
+  assert.ok(errShort.includes('row has 2 cells, expected 3 cells (matching headers count)'));
+  assert.ok(errLong, 'Should detect Row [2] being too long');
+  assert.ok(errLong.includes('row has 4 cells, expected 3 cells (matching headers count)'));
+});
+
+test('rejects unequal table row widths without headers matching first row width', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Unequal Table Rows No Headers Test',
+    content: [
+      {
+        type: 'table',
+        rows: [
+          ['A', 'B'],
+          ['C', 'D', 'E'] // 3 cells vs 2
+        ]
+      }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  const err = res.errors.find((e) => e.includes('Row [1]') && e.includes('Unequal table row width'));
+  assert.ok(err, 'Should detect Row [1] mismatching first row width');
+  assert.ok(err.includes('row has 3 cells, expected 2 cells (matching first row width)'));
+});
+
+test('rejects malformed table rows (non-array rows, null cells, unknown cell properties)', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Malformed Table Rows Test',
+    content: [
+      {
+        type: 'table',
+        headers: ['A', 'B'],
+        rows: [
+          'not an array row',
+          [null, 'valid'],
+          [{ text: 'Cell', reveal: true, unknownCellProp: 123 }, 'valid'],
+          [{ text: 'Cell', reveal: 'not-a-boolean' }, 'valid'],
+          [{ text: 42, revealStep: -2 }, 'valid']
+        ]
+      }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes('Row [0]: Table row must be an array of cells')));
+  assert.ok(res.errors.some((e) => e.includes('Row [1] Cell [0]: Cell cannot be null or undefined')));
+  assert.ok(res.errors.some((e) => e.includes("Row [2] Cell [0]: Unknown cell property 'unknownCellProp'")));
+  assert.ok(res.errors.some((e) => e.includes("Row [3] Cell [0]: 'reveal' must be a boolean")));
+  assert.ok(res.errors.some((e) => e.includes("Row [4] Cell [0]: 'revealStep' must be a positive integer")));
+});
+
+test('rejects wrong field types across block properties', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Wrong Field Types Test',
+    content: [
+      { type: 'heading', text: 123, level: 'high' },
+      { type: 'paragraph', text: ['Not a string'] },
+      { type: 'formula', latex: '' },
+      { type: 'bullet-list', items: 'not an array' },
+      { type: 'note-box', text: 'Valid', copyToWorkbook: 'yes' },
+      { type: 'paragraph', text: 'Valid', reveal: 'true', revealStep: 0 }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes('slide.content[0]') && e.includes("Heading 'text' must be a string")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[0]') && e.includes("Heading 'level' must be an integer between 1 and 6")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[1]') && e.includes("Paragraph 'text' must be a string")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[2]') && e.includes("Formula 'latex' cannot be empty")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[3]') && e.includes("bullet-list requires an 'items' array")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[4]') && e.includes("Note-box 'copyToWorkbook' must be a boolean")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[5]') && e.includes("'reveal' must be a boolean")));
+  assert.ok(res.errors.some((e) => e.includes('slide.content[5]') && e.includes("'revealStep' must be a positive integer")));
+});
+
+test('rejects misspelled properties on various block types', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Misspelled Props Test',
+    content: [
+      { type: 'paragraph', text: 'Hello', tezt: 'Extra misspelled' },
+      { type: 'formula', latex: 'x=1', latx: 'misspelled' },
+      { type: 'table', headers: ['A'], rows: [['1']], compactTable: true }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes("Unknown or unexpected block property 'tezt'")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown or unexpected block property 'latx'")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown or unexpected block property 'compactTable'")));
+});
+
+test('rejects unknown or misspelled properties in stem-and-leaf rows', () => {
+  const lesson = makeLesson({
+    type: 'notes',
+    title: 'Stem and Leaf Row Props Test',
+    content: [
+      {
+        type: 'stem-and-leaf',
+        rows: [
+          { stem: 1, leaves: '2 3', leaf: '4' }
+        ]
+      }
+    ]
+  });
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes("Unknown property 'leaf' in stem-and-leaf row")));
 });
 
 test('validates all registered lessons from manifest without errors', async () => {

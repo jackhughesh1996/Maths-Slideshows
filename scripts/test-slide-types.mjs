@@ -252,3 +252,491 @@ test('we-do and board-task preserve distinct default labels and board task layou
   assert.ok(renderedWeDo.innerHTML.includes('We Do — Guided Practice'), 'we-do default label must be "We Do — Guided Practice"');
   assert.ok(renderedBoardTask.innerHTML.includes('We Do — Board Task'), 'board-task default label must be "We Do — Board Task"');
 });
+
+// ---------------------------------------------------------------------------
+// 4. Slide Structure and Schema Validation Regression Tests
+// ---------------------------------------------------------------------------
+
+test('validates successful canonical examples of every supported slide type', () => {
+  const lesson = {
+    id: 'ALL-SLIDE-TYPES',
+    title: 'All Supported Slide Types Lesson',
+    slides: [
+      {
+        type: 'title',
+        title: 'Probability and Data Displays',
+        subtitle: 'Year 7 Mathematics Core Unit',
+        overview: 'Comprehensive introduction to data displays and probability.',
+        topics: ['Stem-and-Leaf', 'Sector Graphs', 'Probability'],
+        phase: 'opening',
+        estimatedMinutes: 2
+      },
+      {
+        type: 'learning',
+        title: 'Learning Intentions & WILF',
+        learningIntention: 'To calculate theoretical probabilities accurately.',
+        successCriteria: [
+          'I can list sample spaces.',
+          'I can calculate Pr(E) = n(E) / n(S).'
+        ],
+        keyPrinciple: 'Probabilities range from 0 (impossible) to 1 (certain).',
+        extraBlocks: [{ type: 'paragraph', text: 'Important note on probability scale.' }],
+        phase: 'opening',
+        estimatedMinutes: 3
+      },
+      {
+        type: 'do-now',
+        title: 'Do Now: Warm Up',
+        stimulusTitle: 'Starter Problem',
+        stimulusPrompt: 'Consider a fair six-sided die.',
+        questions: [
+          { prompt: 'What is the probability of rolling an even number?', answer: '3/6 = 1/2' },
+          { prompt: 'What is the probability of rolling a 5?', answer: '1/6' }
+        ],
+        sidebarNotes: [
+          { type: 'note-box', variant: 'gold', text: 'Spend 3 minutes on this in workbooks.' }
+        ],
+        phase: 'opening',
+        estimatedMinutes: 4
+      },
+      {
+        type: 'notes',
+        title: 'Key Definitions',
+        columns: [
+          {
+            title: 'Theoretical Probability',
+            width: '60',
+            blocks: [
+              { type: 'paragraph', text: 'Calculated before any experiment takes place.' }
+            ]
+          },
+          {
+            title: 'Formula',
+            width: '40',
+            blocks: [
+              { type: 'formula', latex: '\\text{Pr}(E) = \\frac{n(E)}{n(S)}' }
+            ]
+          }
+        ],
+        phase: 'explicit',
+        estimatedMinutes: 5
+      },
+      {
+        type: 'notes',
+        title: 'Single-Column Notes (Content Format)',
+        content: [
+          { type: 'note-box', variant: 'green', text: 'Single column workbook note.' }
+        ],
+        phase: 'explicit'
+      },
+      {
+        type: 'worked-example',
+        title: 'I Do: Calculating Probability of a Spinner',
+        prompt: 'A spinner has 4 equal sections: Red, Blue, Green, Yellow.',
+        data: 'Sample space S = {R, B, G, Y}',
+        leftBlocks: [
+          { type: 'raw-data', data: 'R, B, G, Y' }
+        ],
+        steps: [
+          { label: 'Identify total outcomes', text: 'There are 4 equally likely outcomes.' },
+          { label: 'Identify favourable outcomes', text: 'Red occurs once: n(Red) = 1.' },
+          { label: 'Apply formula', latex: '\\text{Pr}(\\text{Red}) = \\frac{1}{4}' }
+        ],
+        phase: 'explicit',
+        estimatedMinutes: 5
+      },
+      {
+        type: 'board-task',
+        title: 'We Do: Guided Calculation',
+        studentAction: 'On whiteboards: calculate the probability of not rolling a 6.',
+        prompt: 'Roll a fair standard die.',
+        workspaceContent: [
+          { type: 'paragraph', text: 'Calculate Pr(not 6).' }
+        ],
+        solution: [
+          { type: 'paragraph', text: '$\\text{Pr}(\\text{not } 6) = 1 - \\frac{1}{6} = \\frac{5}{6}$' }
+        ],
+        notes: [
+          { type: 'note-box', variant: 'alert', text: 'Check student board working.' }
+        ],
+        phase: 'guided',
+        estimatedMinutes: 6
+      },
+      {
+        type: 'we-do',
+        title: 'We Do (Canonical Alias)',
+        prompt: 'Calculate complementary event',
+        content: [{ type: 'paragraph', text: 'Work together.' }],
+        solution: [{ type: 'paragraph', text: 'Answer' }]
+      },
+      {
+        type: 'comparison',
+        title: 'Comparing Theoretical and Experimental Probability',
+        columns: [
+          {
+            title: 'Theoretical',
+            blocks: [{ type: 'paragraph', text: 'Based on mathematical reasoning.' }]
+          },
+          {
+            title: 'Experimental',
+            blocks: [{ type: 'paragraph', text: 'Based on observed frequency of trials.' }]
+          }
+        ],
+        phase: 'guided',
+        estimatedMinutes: 5
+      },
+      {
+        type: 'practice',
+        title: 'Independent Practice (Tasks Format)',
+        timerMinutes: 10,
+        estimatedMinutes: 12,
+        phase: 'independent',
+        tasks: [
+          {
+            title: 'Task 1: Dice Probabilities',
+            prompt: 'Find Pr(rolling > 4) on a 6-sided die.',
+            solution: [
+              { type: 'paragraph', text: 'Outcomes 5 and 6: 2/6 = 1/3' }
+            ]
+          }
+        ]
+      },
+      {
+        type: 'practice',
+        title: 'Independent Practice (Content Format)',
+        content: [
+          { type: 'paragraph', text: 'Complete questions 1 to 5 from page 142.' }
+        ]
+      },
+      {
+        type: 'exit-ticket',
+        title: 'Exit Ticket Checkpoint',
+        estimatedMinutes: 5,
+        phase: 'assessment',
+        questions: [
+          {
+            prompt: 'What is the sum of probabilities of all elementary outcomes?',
+            solution: [
+              { type: 'paragraph', text: 'The sum is always 1.' }
+            ]
+          }
+        ]
+      },
+      {
+        type: 'summary',
+        title: 'Lesson Summary & Key Rules',
+        estimatedMinutes: 3,
+        phase: 'assessment',
+        takeaways: [
+          'Theoretical probability formula: Pr(E) = n(E) / n(S).',
+          'Probabilities are always between 0 and 1 inclusive.',
+          'Complementary probability: Pr(not E) = 1 - Pr(E).'
+        ]
+      }
+    ]
+  };
+
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, true, `All canonical slide types must pass: ${res.errors.join('; ')}`);
+  assert.equal(res.errors.length, 0);
+});
+
+test('rejects solution supplied as string where block array is required', () => {
+  // 1. In board-task
+  const lessonBoardTaskStr = {
+    id: 'SOL-TEST-1',
+    title: 'Board Task String Solution',
+    slides: [
+      {
+        type: 'board-task',
+        title: 'Board Task',
+        prompt: 'Calculate',
+        solution: 'String solution is invalid'
+      }
+    ]
+  };
+  const resBoard = validateLesson(lessonBoardTaskStr, { silent: true });
+  assert.equal(resBoard.valid, false);
+  assert.ok(resBoard.errors.some((e) => e.includes("Board task") && e.includes("'solution' must be an array of blocks, got string")));
+
+  // 2. In practice task
+  const lessonTaskStr = {
+    id: 'SOL-TEST-2',
+    title: 'Practice Task String Solution',
+    slides: [
+      {
+        type: 'practice',
+        title: 'Practice',
+        tasks: [
+          {
+            title: 'Task 1',
+            prompt: 'Solve',
+            solution: 'String task solution'
+          }
+        ]
+      }
+    ]
+  };
+  const resTask = validateLesson(lessonTaskStr, { silent: true });
+  assert.equal(resTask.valid, false);
+  assert.ok(resTask.errors.some((e) => e.includes('Task [0]') && e.includes("'solution' must be an array of blocks, got string")));
+
+  // 3. In exit-ticket question
+  const lessonExitStr = {
+    id: 'SOL-TEST-3',
+    title: 'Exit Ticket String Solution',
+    slides: [
+      {
+        type: 'exit-ticket',
+        title: 'Exit Ticket',
+        questions: [
+          {
+            prompt: 'What is 2 + 2?',
+            solution: '4'
+          }
+        ]
+      }
+    ]
+  };
+  const resExit = validateLesson(lessonExitStr, { silent: true });
+  assert.equal(resExit.valid, false);
+  assert.ok(resExit.errors.some((e) => e.includes('Question [0]') && e.includes("'solution' must be an array of blocks, got string")));
+});
+
+test('rejects misspelled slide properties as fatal errors rather than warnings', () => {
+  const lesson = {
+    id: 'DRIFT-TEST',
+    title: 'Misspelled Properties Slide',
+    slides: [
+      {
+        type: 'notes',
+        title: 'Notes Slide',
+        subtitl: 'Misspelled subtitle', // typo
+        colums: [                      // typo
+          { title: 'Col 1', blocks: [{ type: 'paragraph', text: 'Text' }] }
+        ]
+      }
+    ]
+  };
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes("Unknown or unexpected slide property 'subtitl'")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown or unexpected slide property 'colums'")));
+});
+
+test('validates pacing numbers strictly as finite positive numbers and rejects invalid timings', () => {
+  const invalidPacingCases = [
+    { estimatedMinutes: 0 },
+    { estimatedMinutes: -5 },
+    { estimatedMinutes: Infinity },
+    { estimatedMinutes: -Infinity },
+    { estimatedMinutes: NaN },
+    { estimatedMinutes: '10' },
+    { timerMinutes: 0 },
+    { timerMinutes: -10 },
+    { timerMinutes: Infinity },
+    { timerMinutes: '5' }
+  ];
+
+  for (const pacing of invalidPacingCases) {
+    const lesson = {
+      id: 'PACING-TEST',
+      title: 'Invalid Pacing Test',
+      slides: [
+        {
+          type: 'summary',
+          title: 'Summary',
+          takeaways: ['Rule 1'],
+          ...pacing
+        }
+      ]
+    };
+    const res = validateLesson(lesson, { silent: true });
+    assert.equal(res.valid, false, `Expected pacing ${JSON.stringify(pacing)} to fail`);
+    assert.ok(
+      res.errors.some((e) => e.includes('must be a finite positive number')),
+      `Error must describe finite positive number requirement for ${JSON.stringify(pacing)}`
+    );
+  }
+});
+
+test('preserves supported legacy formats explicitly', () => {
+  // Exit ticket using legacy 'question' property instead of 'prompt'
+  const lessonLegacyQuestion = {
+    id: 'LEGACY-EXIT',
+    title: 'Legacy Exit Ticket',
+    slides: [
+      {
+        type: 'exit-ticket',
+        title: 'Exit Ticket',
+        questions: [
+          {
+            question: 'Legacy question wording?',
+            solution: [{ type: 'paragraph', text: 'Answer' }]
+          }
+        ]
+      }
+    ]
+  };
+  const res = validateLesson(lessonLegacyQuestion, { silent: true });
+  assert.equal(res.valid, true, 'Legacy question property should pass validation');
+  assert.ok(res.warnings.some((w) => w.includes("Found 'question' property instead of canonical 'prompt'")));
+});
+
+test('rejects malformed sub-structures in questions, steps, columns, and tasks', () => {
+  const lesson = {
+    id: 'SUB-TEST',
+    title: 'Malformed Substructures',
+    slides: [
+      {
+        type: 'do-now',
+        title: 'Do Now',
+        questions: [
+          { prompt: 'Missing answer' } // no answer
+        ]
+      },
+      {
+        type: 'worked-example',
+        title: 'Worked Example',
+        steps: [
+          { label: 'Empty Step' } // no text, latex, or blocks
+        ]
+      },
+      {
+        type: 'comparison',
+        title: 'Comparison',
+        columns: [
+          { title: 'Col with no blocks' } // no blocks
+        ]
+      },
+      {
+        type: 'practice',
+        title: 'Practice',
+        tasks: [
+          { blocks: [{ type: 'paragraph', text: 'No title or prompt' }] }
+        ]
+      }
+    ]
+  };
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes('Slide 1') && e.includes("Missing required 'answer' string")));
+  assert.ok(res.errors.some((e) => e.includes('Slide 2') && e.includes("Worked example step requires at least 'text', 'latex', or 'blocks'")));
+  assert.ok(res.errors.some((e) => e.includes('Slide 3') && e.includes("Column requires a non-empty 'blocks' array")));
+  assert.ok(res.errors.some((e) => e.includes('Slide 4') && e.includes("Practice task requires at least a 'title' or 'prompt'")));
+});
+
+test('rejects solution supplied as string in we-do slide', () => {
+  const lesson = {
+    id: 'WE-DO-SOL-TEST',
+    title: 'We Do String Solution Test',
+    slides: [
+      {
+        type: 'we-do',
+        title: 'We Do Slide',
+        prompt: 'Calculate together',
+        solution: 'This should fail as it is a string'
+      }
+    ]
+  };
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes("We Do") && e.includes("'solution' must be an array of blocks, got string")));
+});
+
+test('rejects misspelled properties inside nested sub-structures', () => {
+  const lesson = {
+    id: 'NESTED-TYPO-TEST',
+    title: 'Nested Typo Test',
+    slides: [
+      {
+        type: 'do-now',
+        title: 'Do Now',
+        questions: [
+          { prompt: 'What is 5 x 5?', answr: '25' } // 'answr' typo
+        ]
+      },
+      {
+        type: 'comparison',
+        title: 'Comparison',
+        columns: [
+          { title: 'Col A', widht: '50', blocks: [{ type: 'paragraph', text: 'Text A' }] } // 'widht' typo
+        ]
+      },
+      {
+        type: 'worked-example',
+        title: 'Worked Example',
+        steps: [
+          { lable: 'Step 1', text: 'Step text' } // 'lable' typo
+        ]
+      },
+      {
+        type: 'practice',
+        title: 'Practice',
+        tasks: [
+          { titl: 'Task 1', prompt: 'Solve', solution: [{ type: 'paragraph', text: 'Ans' }] } // 'titl' typo
+        ]
+      }
+    ]
+  };
+  const res = validateLesson(lesson, { silent: true });
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.some((e) => e.includes("Unknown property 'answr' in Do Now question")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown property 'widht' in column")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown property 'lable' in worked example step")));
+  assert.ok(res.errors.some((e) => e.includes("Unknown property 'titl' in task")));
+});
+
+test('strictly validates learning, summary, and title slide structures', () => {
+  // Learning slide missing required learningIntention and with empty successCriteria
+  const lessonLearning = {
+    id: 'LEARNING-ERR',
+    title: 'Learning Errors',
+    slides: [
+      {
+        type: 'learning',
+        title: 'Learning',
+        successCriteria: [] // empty
+      }
+    ]
+  };
+  const resL = validateLesson(lessonLearning, { silent: true });
+  assert.equal(resL.valid, false);
+  assert.ok(resL.errors.some((e) => e.includes("Learning slide requires a 'learningIntention' string")));
+  assert.ok(resL.errors.some((e) => e.includes("Learning slide requires a non-empty 'successCriteria' array")));
+
+  // Summary slide with empty takeaways
+  const lessonSummary = {
+    id: 'SUMMARY-ERR',
+    title: 'Summary Errors',
+    slides: [
+      {
+        type: 'summary',
+        title: 'Summary',
+        takeaways: [] // empty
+      }
+    ]
+  };
+  const resS = validateLesson(lessonSummary, { silent: true });
+  assert.equal(resS.valid, false);
+  assert.ok(resS.errors.some((e) => e.includes("Summary slide requires a non-empty 'takeaways' array")));
+
+  // Title slide with invalid types
+  const lessonTitle = {
+    id: 'TITLE-ERR',
+    title: 'Title Errors',
+    slides: [
+      {
+        type: 'title',
+        title: 'Title',
+        overview: 12345, // not a string
+        topics: 'topic 1, topic 2' // not an array
+      }
+    ]
+  };
+  const resT = validateLesson(lessonTitle, { silent: true });
+  assert.equal(resT.valid, false);
+  assert.ok(resT.errors.some((e) => e.includes("'overview' must be a string")));
+  assert.ok(resT.errors.some((e) => e.includes("'topics' must be an array of strings")));
+});
+
