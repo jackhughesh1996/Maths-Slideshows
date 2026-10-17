@@ -57,11 +57,16 @@ const markupMod = asModule(markupSource);
 const { renderSimulationBlock } = await import(markupMod);
 const experimentalMarkup = await import(simMod);
 
+let graphSource = await readFile(new URL('../src/slideshow/graphMarkup.js', import.meta.url), 'utf8');
+graphSource = graphSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
+const graphMod = asModule(graphSource);
+
 let rendererSource = await readFile(new URL('../src/slideshow/renderer.js', import.meta.url), 'utf8');
 rendererSource = rendererSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
   .replace("from './slideTypes.js'", `from ${JSON.stringify(slideTypesUrl)}`)
-  .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`);
+  .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`)
+  .replace("from './graphMarkup.js'", `from ${JSON.stringify(graphMod)}`);
 
 const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));
 
@@ -1292,3 +1297,144 @@ test('simulation markup retains default spinner dispatch and empty output for un
   assert.deepEqual(simulationConfig(html), block);
   assert.equal(renderSimulationBlock({ type: 'simulation', simType: 'unknown' }), '');
 });
+
+test('standard stem-and-leaf markup retains literal rows, rich keys and one numbered root', () => {
+  const block = { type: 'stem-and-leaf', revealStep: 3,
+    rows: [{ stem: 0, leaves: '1 3 <5>' }, { stem: 2, leaves: '' }], key: '**Key:** $0|1 = 1$' };
+  const before = structuredClone(block);
+  const html = renderBlock(block);
+  assert.match(html, /class="stem-plot-container reveal-item" data-reveal-step="3"/);
+  assert.ok(html.includes('<th>Stem</th>'));
+  assert.ok(html.includes('<th>Leaf</th>'));
+  assert.ok(html.includes('<td class="stem">0</td>'));
+  assert.ok(html.includes('<td class="leaves">1 3 &lt;5&gt;</td>'));
+  assert.ok(html.includes('<strong>Key:</strong>'));
+  assert.ok(html.includes('class="katex"'));
+  assert.deepEqual(getRenderedRevealSteps(html).stepNumbers, [3]);
+  assert.equal(getRenderedRevealSteps(html).itemsByStep.get(3).length, 1);
+  assert.deepEqual(block, before);
+});
+
+test('back-to-back stem plots retain both headers, leaf columns and optional defaults', () => {
+  const block = { type: 'stem-and-leaf', isBackToBack: true, leftHeader: '<Class A>', rightHeader: 'B & C',
+    rows: [{ stem: 2, leftLeaves: '9 7', leaves: '1 5' }], key: '$2|1 = 21$', reveal: true };
+  const html = renderBlock(block);
+  assert.ok(html.includes('&lt;Class A&gt;'));
+  assert.ok(html.includes('B &amp; C'));
+  assert.ok(html.includes('<td class="leaves-left">9 7</td>'));
+  assert.ok(html.includes('<td class="stem-center">2</td>'));
+  assert.ok(html.includes('<td class="leaves">1 5</td>'));
+  assert.ok(html.includes('class="katex"'));
+  assert.equal(getRenderedRevealSteps(html).totalSteps, 1);
+  const defaults = renderBlock({ type: 'stem-and-leaf', isBackToBack: true, rows: [] });
+  assert.ok(defaults.includes('Group A'));
+  assert.ok(defaults.includes('Group B'));
+  assert.ok(!defaults.includes('plot-key'));
+});
+
+test('sector graphs retain count/fraction geometry, palette, labels and sizing defaults', () => {
+  const counts = { type: 'sector-graph', items: [{ label: '<A>', amount: 1 }, { label: 'B & C', amount: 3 }] };
+  const fractions = { type: 'sector-graph', items: [{ label: '<A>', fraction: 0.25, angle: 90 },
+    { label: 'B & C', fraction: 0.75, angle: 270 }] };
+  const countHtml = renderBlock(counts);
+  const fractionHtml = renderBlock(fractions);
+  const paths = (html) => [...html.matchAll(/<path d="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(paths(countHtml).length, 2);
+  assert.deepEqual(paths(countHtml), paths(fractionHtml));
+  for (const html of [countHtml, fractionHtml]) {
+    assert.ok(html.includes('viewBox="0 0 250 250" width="250" height="250"'));
+    assert.ok(html.includes('A 95 95'));
+    assert.ok(html.includes('fill="#2563eb"'));
+    assert.ok(html.includes('fill="#16a34a"'));
+    assert.ok(html.includes('&lt;A&gt;'));
+    assert.ok(html.includes('B &amp; C'));
+    assert.ok(html.includes('90°'));
+    assert.ok(html.includes('270°'));
+    assert.equal(getRenderedRevealSteps(html).totalSteps, 0);
+  }
+  const full = renderBlock({ type: 'sector-graph', size: 300, radius: 110, revealStep: 4,
+    items: [{ label: 'All', amount: 10, color: '#abcdef' }] });
+  assert.ok(full.includes('<circle cx="150" cy="150" r="110" fill="#abcdef"'));
+  assert.deepEqual(getRenderedRevealSteps(full).stepNumbers, [4]);
+  assert.equal(renderBlock({ type: 'sector-graph', items: [] }), '');
+});
+
+test('sector construction renders nested notes through the real callback and retains reveal groups', () => {
+  const notes = [
+    { type: 'note-box', text: '**Checkpoint** $x=1$', copyToWorkbook: true, revealStep: 1 },
+    { type: 'solution', title: 'Nested answer', text: 'Full circle $360^\\circ$', revealStep: 5,
+      blocks: [{ type: 'paragraph', text: 'Nested working' }] }
+  ];
+  const block = { type: 'sector-construction', categories: [
+    { label: '<A>', value: 1, fraction: '\\frac{1}{4}', calculation: '\\frac{1}{4} \\times 360^\\circ', angle: 90 },
+    { label: 'B', amount: 3, fraction: '\\frac{3}{4}', angle: 270 }
+  ], tableHeaders: ['Category', '$f$', 'Fraction', 'Calculation'],
+  checkMath: '90^\\circ+270^\\circ=360^\\circ', checkLabel: '**Circle**', notes };
+  const before = structuredClone(block);
+  const html = renderBlock(block);
+  assert.ok(html.includes('viewBox="0 0 340 340"'));
+  assert.ok(html.includes('&lt;A&gt;'));
+  assert.ok(html.includes('calc-prefix'));
+  assert.ok(html.includes('calc-blank-value'));
+  assert.ok(html.includes('<strong>Circle</strong>'));
+  assert.ok(html.includes('class="katex"'));
+  assert.ok(html.includes(`<div class="sector-notes-wrap">${renderBlocks(notes)}</div>`));
+  const steps = getRenderedRevealSteps(html);
+  assert.deepEqual(steps.stepNumbers, [1, 2, 3, 4, 5]);
+  assert.deepEqual([...steps.itemsByStep.values()].map((items) => items.length), [2, 1, 1, 1, 3]);
+  assert.match(steps.itemsByStep.get(2)[0].tag, /sector-construction-group/);
+  assert.match(steps.itemsByStep.get(3)[0].tag, /calc-revealed-value/);
+  assert.ok(steps.itemsByStep.get(5).some(({ tag }) => /sector-construction-check/.test(tag)));
+  assert.deepEqual(block, before);
+
+  const chartOnly = renderBlock({ ...block, showTable: false });
+  assert.ok(!chartOnly.includes('sector-math-table'));
+  assert.ok(!chartOnly.includes('sector-notes-wrap'));
+  assert.deepEqual(getRenderedRevealSteps(chartOnly).stepNumbers, [2, 4, 5]);
+  assert.equal(renderBlock({ type: 'sector-construction', categories: [] }), '');
+  // Re-enter the graph renderer through a note container, without a module cycle.
+  const recursiveNotes = [{ type: 'sector-construction', categories: [{ label: 'Inner', value: 1 }],
+    notes: [{ type: 'paragraph', text: 'Deep note $x=0$', revealStep: 7 }] }];
+  const recursiveHtml = renderBlock({ ...block, notes: recursiveNotes });
+  assert.ok(recursiveHtml.includes(`<div class="sector-notes-wrap">${renderBlocks(recursiveNotes)}</div>`));
+  assert.ok(recursiveHtml.includes('Deep note'));
+  assert.ok(getRenderedRevealSteps(recursiveHtml).stepNumbers.includes(7));
+});
+
+for (const type of ['measured-bar', 'divided-bar']) {
+  test(`${type} retains static/outer and progressive/internal reveals, lengths and tick defaults`, () => {
+    const block = { type, items: [{ label: '<A>', amount: 2 }, { label: 'B & C', value: 6 }], totalLengthCm: 12,
+      title: '**Bar** $x=1$', checkMath: '3+9=12', checkLabel: '**Length**' };
+    const plain = renderBlock(block);
+    const numbered = renderBlock({ ...block, revealStep: 4 });
+    const progressive = renderBlock({ ...block, progressive: true });
+    for (const html of [plain, numbered, progressive]) {
+      assert.ok(html.includes('viewBox="0 0 740 126"'));
+      assert.ok(html.includes('<title>&lt;A&gt;: 3 cm (boundary at 3 cm)</title>'));
+      assert.ok(html.includes('<title>B &amp; C: 9 cm (boundary at 12 cm)</title>'));
+      assert.ok(html.includes('<strong>Bar</strong>'));
+      assert.ok(html.includes('<strong>Length</strong>'));
+      assert.ok(html.includes('class="katex"'));
+      assert.equal((html.match(/stroke="#64748b" stroke-width="1.4"/g) || []).length, 12);
+    }
+    assert.equal(getRenderedRevealSteps(plain).totalSteps, 0);
+    const outer = getRenderedRevealSteps(numbered);
+    assert.deepEqual(outer.stepNumbers, [4]);
+    assert.equal(outer.itemsByStep.get(4).length, 1);
+    assert.match(outer.itemsByStep.get(4)[0].tag, /measured-bar-container/);
+    const internal = getRenderedRevealSteps(progressive);
+    assert.equal(internal.hasCustomSteps, false);
+    assert.deepEqual(internal.stepNumbers, [1, 2, 3]);
+    assert.match(internal.itemsByStep.get(1)[0].tag, /measured-bar-segment.*data-segment="0"/);
+    assert.match(internal.itemsByStep.get(2)[0].tag, /measured-bar-segment.*data-segment="1"/);
+    assert.match(internal.itemsByStep.get(3)[0].tag, /measured-bar-check/);
+    assert.equal(plain, renderBlock({ ...block, type: type === 'measured-bar' ? 'divided-bar' : 'measured-bar' }));
+    const defaults = renderBlock({ type, categories: [{ label: 'A', length: 1 }, { label: 'B', length: 3 }] });
+    assert.ok(defaults.includes('<title>A: 5 cm (boundary at 5 cm)</title>'));
+    assert.ok(defaults.includes('<title>B: 15 cm (boundary at 20 cm)</title>'));
+    assert.equal((defaults.match(/stroke="#64748b" stroke-width="1.4"/g) || []).length, 20);
+    assert.ok(!renderBlock({ ...block, showMinorTicks: false }).includes('stroke-width="1.4"'));
+    assert.ok(!renderBlock({ ...block, showTicks: false }).includes('y2="92"'));
+    assert.equal(renderBlock({ type, categories: [] }), '');
+  });
+}
