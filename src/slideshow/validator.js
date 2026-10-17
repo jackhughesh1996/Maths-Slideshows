@@ -413,16 +413,53 @@ export function validateLesson(lesson, options = {}) {
           errors.push(`${slidePrefix}: 'spinners' must be an array.`);
         } else {
           const allowedSpinnerProps = new Set(['id', 'name', 'sectors', 'needleAngle', 'sectorsDescription']);
+          const allowedSectorProps = new Set(['startDeg', 'endDeg', 'label', 'color', 'textColor']);
           slide.spinners.forEach((sp, spIdx) => {
-            if (!sp || typeof sp !== 'object') {
-              errors.push(`${slidePrefix} Spinner [${spIdx}]: Spinner must be an object.`);
+            const spinnerPath = `slide.spinners[${spIdx}]`;
+            if (!sp || typeof sp !== 'object' || Array.isArray(sp)) {
+              errors.push(`${slidePrefix} [${spinnerPath}]: Spinner must be an object.`);
               return;
             }
             for (const p of Object.keys(sp)) {
               if (!allowedSpinnerProps.has(p)) {
-                errors.push(`${slidePrefix} Spinner [${spIdx}]: Unknown property '${p}' in spinner.`);
+                errors.push(`${slidePrefix} [${spinnerPath}.${p}]: Unknown property '${p}' in spinner.`);
               }
             }
+            for (const p of ['id', 'name', 'sectorsDescription']) {
+              if (sp[p] !== undefined && typeof sp[p] !== 'string') {
+                errors.push(`${slidePrefix} [${spinnerPath}.${p}]: Must be a string.`);
+              }
+            }
+            if (sp.needleAngle !== undefined && !Number.isFinite(sp.needleAngle)) {
+              errors.push(`${slidePrefix} [${spinnerPath}.needleAngle]: Must be a finite number.`);
+            }
+            if (sp.sectors === undefined) return; // The renderer defaults to no sectors.
+            if (!Array.isArray(sp.sectors)) {
+              errors.push(`${slidePrefix} [${spinnerPath}.sectors]: Must be an array.`);
+              return;
+            }
+            sp.sectors.forEach((sector, sectorIdx) => {
+              const sectorPath = `${spinnerPath}.sectors[${sectorIdx}]`;
+              if (!sector || typeof sector !== 'object' || Array.isArray(sector)) {
+                errors.push(`${slidePrefix} [${sectorPath}]: Sector must be an object.`);
+                return;
+              }
+              for (const p of Object.keys(sector)) {
+                if (!allowedSectorProps.has(p)) {
+                  errors.push(`${slidePrefix} [${sectorPath}.${p}]: Unknown property '${p}' in sector.`);
+                }
+              }
+              for (const p of ['startDeg', 'endDeg']) {
+                if (sector[p] !== undefined && !Number.isFinite(sector[p])) {
+                  errors.push(`${slidePrefix} [${sectorPath}.${p}]: Must be a finite number.`);
+                }
+              }
+              for (const p of ['label', 'color', 'textColor']) {
+                if (sector[p] !== undefined && typeof sector[p] !== 'string') {
+                  errors.push(`${slidePrefix} [${sectorPath}.${p}]: Must be a string.`);
+                }
+              }
+            });
           });
         }
       }
@@ -814,8 +851,8 @@ export function validateLesson(lesson, options = {}) {
           errors.push(`${blockDesc}: ${canonicalBType} requires a non-empty 'items' array.`);
         } else {
           block.items.forEach((item, itIdx) => {
-            if (typeof item !== 'string' && typeof item !== 'number') {
-              errors.push(`${blockDesc} Item [${itIdx}]: List item must be a string or number.`);
+            if (typeof item !== 'string' && !Number.isFinite(item)) {
+              errors.push(`${blockDesc} Item [${itIdx}]: List item must be a string or finite number.`);
             }
           });
         }
@@ -995,7 +1032,7 @@ export function validateLesson(lesson, options = {}) {
             : new Set(['stem', 'leaves']);
 
           block.rows.forEach((r, rIdx) => {
-            if (!r || typeof r !== 'object') {
+            if (!r || typeof r !== 'object' || Array.isArray(r)) {
               errors.push(`${blockDesc} Row [${rIdx}]: Stem-and-leaf row must be an object.`);
               return;
             }
@@ -1008,6 +1045,13 @@ export function validateLesson(lesson, options = {}) {
 
             if (r.stem === undefined || r.stem === null) {
               errors.push(`${blockDesc} Row [${rIdx}]: Missing required 'stem' property.`);
+            } else if (typeof r.stem !== 'string' && !Number.isFinite(r.stem)) {
+              errors.push(`${blockDesc} [${path}.rows[${rIdx}].stem]: Must be a string or finite number.`);
+            }
+            for (const prop of isB2B ? ['leftLeaves', 'leaves'] : ['leaves']) {
+              if (r[prop] !== undefined && typeof r[prop] !== 'string') {
+                errors.push(`${blockDesc} [${path}.rows[${rIdx}].${prop}]: Must be a string of leaves (for example, '0 2 4').`);
+              }
             }
 
             if (isB2B) {

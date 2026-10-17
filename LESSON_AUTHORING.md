@@ -431,8 +431,8 @@ Any slide supporting `blocks` or `content` can use these reusable building block
 | :--- | :--- | :--- |
 | `heading` | Required non-empty `text`; optional integer `level: 1–6` (default 3) | Semantic section heading with KaTeX support |
 | `paragraph` | Required `text: string` | Regular text paragraph with KaTeX support |
-| `bullet-list` | Required non-empty `items: (string\|number)[]`; use strings | Unordered bulleted list |
-| `ordered-list` | Required non-empty `items: (string\|number)[]`; use strings | Numbered list |
+| `bullet-list` | Required non-empty `items: (string\|number)[]`; numbers must be finite | Unordered bulleted list |
+| `ordered-list` | Required non-empty `items: (string\|number)[]`; numbers must be finite | Numbered list |
 | `note-box` | Required `text`; optional `title`, `variant: 'default'\|'gold'\|'green'\|'alert'`, `copyToWorkbook: boolean` | Highlighted callout box |
 | `formula` | Required non-empty `latex: string` | Centered display mathematics equation |
 | `raw-data` | Required `data: string` (literal text) | Mono-spaced horizontal ribbon for data values |
@@ -447,9 +447,9 @@ Any slide supporting `blocks` or `content` can use these reusable building block
 
 Use arrays of blocks in each supported container. Only `solution.blocks`, `board-workspace.content` and `sector-construction.notes` are nested block containers within blocks; do not add arbitrary `blocks` / `content` fields to other block types. Shared accepted block metadata is `reveal`, `revealStep`, `badgeTitle`, `className`, subject to the restrictions in section 8. `badgeTitle` labels separate board-task answers; `className` is used on tables, not a general styling API.
 
-For table object headers/cells, `text` is required and may be a string or number (including zero); the only other fields are `reveal` and `revealStep`. If headers are supplied their count must match every row. Prefer string list items: numeric list entries currently validate but are not rendered as text.
+For table object headers/cells, `text` is required and may be a string or number (including zero); the only other fields are `reveal` and `revealStep`. If headers are supplied their count must match every row. List items may be strings with rich text/math formatting or finite numbers, including zero.
 
-`stem-and-leaf` requires non-empty `rows`; `key` is optional in the schema but should explain the place values. Use a string or number for `stem` and plain strings of leaves (for example `"1 4 7"`); leaves are escaped literal text, not rich text. Use `stem` and `leaves` in normal rows; back-to-back rows add `leftLeaves` and require block `leftHeader` / `rightHeader`. Do not use obsolete `typeVariant`, `titleLeft`, `titleRight`, `leavesLeft` or `leavesRight`.
+`stem-and-leaf` requires non-empty `rows`; `key` is optional in the schema but should explain the place values. Use a string or finite number for `stem` and plain strings of leaves (for example `"1 4 7"`); leaves are escaped literal text, not rich text. Even a single numeric leaf must be quoted (for example `"0"`); numeric `leaves` and `leftLeaves` are rejected. Use `stem` and `leaves` in normal rows; back-to-back rows add `leftLeaves` and require block `leftHeader` / `rightHeader`. Do not use obsolete `typeVariant`, `titleLeft`, `titleRight`, `leavesLeft` or `leavesRight`.
 
 ### Simulations
 
@@ -459,7 +459,7 @@ Use a `simulation` block with one of these `simType` values:
 - `counter-bag` (alias `bag-draw`) and `pen-draw` (alias `box-draw`): non-empty `items`, each with non-empty `label`, integer `count >= 0`, optional string `color`, `term`. Zero counts are valid.
 - `coin-class`, `coin-summary`, `coin-cumulative`, `basketball`: do not require spinner or bag data. See lesson 8I for existing configurations.
 
-Shared optional fields: string `title`, `subtitle`, `expected`, `badge`; finite numeric `totalSpins`; finite positive `defaultClassSize`, `trialsPerStudent`. Unknown nested properties fail validation. Use the renderer’s existing controls; do not invent configuration fields. Lesson 8G supplies spinner and draw examples. The static `do-now.spinners` stimulus is a different schema (`id`, `name`, `sectors`, `needleAngle`, `sectorsDescription`), not a simulation block.
+Shared optional fields: string `title`, `subtitle`, `expected`, `badge`; finite numeric `totalSpins`; finite positive `defaultClassSize`, `trialsPerStudent`. Unknown nested properties fail validation. Use the renderer’s existing controls; do not invent configuration fields. Lesson 8G supplies spinner and draw examples. The static `do-now.spinners` stimulus is a different schema (`id`, `name`, `sectors`, `needleAngle`, `sectorsDescription`), not a simulation block. Its optional `sectors` array contains objects with optional finite `startDeg` / `endDeg` and string `label`, `color`, `textColor`. Omitted sectors/angles use renderer defaults; full-circle and wraparound angles are supported. `needleAngle` must be finite; `id`, `name` and `sectorsDescription` must be strings when supplied.
 
 ### Graph data and consistency
 
