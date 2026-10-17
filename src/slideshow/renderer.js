@@ -37,8 +37,20 @@ const PALETTE = [
 export function renderBlock(block) {
   if (!block || typeof block !== 'object') return '';
 
-  const revealClass = block.reveal ? 'reveal-item' : '';
+  // These containers have their own reveal semantics (or no outer element).
+  // Keep their existing handling separate from ordinary block reveals.
+  const supportsNumberedReveal = !['solution', 'sector-construction', 'board-workspace'].includes(block.type);
+  const hasStep = supportsNumberedReveal && block.revealStep !== undefined;
+  const revealClass = block.reveal || hasStep ? 'reveal-item' : '';
+  const html = renderBlockHtml(block, revealClass);
+  // Decorate the existing root, including roots returned by graph/simulation
+  // helpers. Never introduce another reveal wrapper around their markup.
+  return hasStep
+    ? html.replace(/^(\s*<[a-z][^>]*)(>)/i, `$1 data-reveal-step="${escapeHtml(String(block.revealStep))}"$2`)
+    : html;
+}
 
+function renderBlockHtml(block, revealClass) {
   switch (block.type) {
     case 'heading': {
       const level = block.level || 3;
@@ -97,7 +109,7 @@ export function renderBlock(block) {
       const headers = (block.headers || [])
         .map((h) => {
           if (h && typeof h === 'object') {
-            const revClass = h.reveal ? ' class="reveal-item"' : '';
+            const revClass = h.reveal || h.revealStep !== undefined ? ' class="reveal-item"' : '';
             const stepAttr = h.revealStep !== undefined ? ` data-reveal-step="${h.revealStep}"` : '';
             const hText = (h.text !== undefined && h.text !== null) ? String(h.text) : '';
             return `<th><span${revClass}${stepAttr}>${renderMathInText(hText)}</span></th>`;
@@ -110,7 +122,7 @@ export function renderBlock(block) {
           const cells = row
             .map((c) => {
               if (c && typeof c === 'object') {
-                const revClass = c.reveal ? ' class="reveal-item"' : '';
+                const revClass = c.reveal || c.revealStep !== undefined ? ' class="reveal-item"' : '';
                 const stepAttr = c.revealStep !== undefined ? ` data-reveal-step="${c.revealStep}"` : '';
                 const cText = (c.text !== undefined && c.text !== null) ? String(c.text) : '';
                 return `<td><span${revClass}${stepAttr}>${renderMathInText(cText)}</span></td>`;

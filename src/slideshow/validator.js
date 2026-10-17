@@ -744,6 +744,9 @@ export function validateLesson(lesson, options = {}) {
       if (block.reveal !== undefined && typeof block.reveal !== 'boolean') {
         errors.push(`${blockDesc}: 'reveal' must be a boolean (got ${typeof block.reveal}).`);
       }
+      if (block.reveal === false && block.revealStep !== undefined) {
+        errors.push(`${blockDesc}: 'reveal: false' cannot be combined with 'revealStep'.`);
+      }
       if (block.revealStep !== undefined && (typeof block.revealStep !== 'number' || !Number.isInteger(block.revealStep) || block.revealStep < 1)) {
         errors.push(`${blockDesc}: 'revealStep' must be a positive integer (got ${block.revealStep}).`);
       }
@@ -864,6 +867,9 @@ export function validateLesson(lesson, options = {}) {
                   if (h.reveal !== undefined && typeof h.reveal !== 'boolean') {
                     errors.push(`${blockDesc} Header [${hIdx}]: 'reveal' must be a boolean.`);
                   }
+                  if (h.reveal === false && h.revealStep !== undefined) {
+                    errors.push(`${blockDesc} Header [${hIdx}]: 'reveal: false' cannot be combined with 'revealStep'.`);
+                  }
                   if (h.revealStep !== undefined && (typeof h.revealStep !== 'number' || !Number.isInteger(h.revealStep) || h.revealStep < 1)) {
                     errors.push(`${blockDesc} Header [${hIdx}]: 'revealStep' must be a positive integer.`);
                   }
@@ -911,6 +917,9 @@ export function validateLesson(lesson, options = {}) {
                   }
                   if (cell.reveal !== undefined && typeof cell.reveal !== 'boolean') {
                     errors.push(`${blockDesc} Row [${rIdx}] Cell [${cIdx}]: 'reveal' must be a boolean.`);
+                  }
+                  if (cell.reveal === false && cell.revealStep !== undefined) {
+                    errors.push(`${blockDesc} Row [${rIdx}] Cell [${cIdx}]: 'reveal: false' cannot be combined with 'revealStep'.`);
                   }
                   if (cell.revealStep !== undefined && (typeof cell.revealStep !== 'number' || !Number.isInteger(cell.revealStep) || cell.revealStep < 1)) {
                     errors.push(`${blockDesc} Row [${rIdx}] Cell [${cIdx}]: 'revealStep' must be a positive integer.`);

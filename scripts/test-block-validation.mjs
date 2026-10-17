@@ -839,3 +839,45 @@ test('existing 8G spinner, counter bag and pen draw configurations validate with
     }
   }
 });
+
+test('accepts numbered-only, automatic and grouped reveal settings on blocks and table entries', () => {
+  for (const settings of [{ revealStep: 2 }, { reveal: true, revealStep: 2 }, { reveal: true }, { reveal: false }, {}]) {
+    for (const block of [
+      { type: 'paragraph', text: 'Reveal', ...settings },
+      { type: 'table', headers: [{ text: 0, ...settings }], rows: [[{ text: 0, ...settings }]] }
+    ]) {
+      const result = validateGraphBlock(block);
+      assert.equal(result.valid, true, result.errors.join('; '));
+    }
+  }
+});
+
+test('rejects reveal false combined with a reveal step on blocks, headers and cells', () => {
+  for (const revealStep of [1, 3]) {
+    for (const [block, location] of [
+      [{ type: 'paragraph', text: 'Contradiction', reveal: false, revealStep }, 'slide.content[0]'],
+      [{ type: 'table', headers: [{ text: 0, reveal: false, revealStep }], rows: [[0]] }, 'Header [0]'],
+      [{ type: 'table', rows: [[{ text: 0, reveal: false, revealStep }]] }, 'Row [0] Cell [0]']
+    ]) {
+      const result = validateGraphBlock(block);
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((error) => error.includes(location) &&
+        error.includes("'reveal: false' cannot be combined with 'revealStep'")), result.errors.join('; '));
+    }
+  }
+});
+
+test('numbered reveal settings still require positive integer step numbers', () => {
+  for (const revealStep of [0, -1, 1.5, NaN, Infinity, '2', null]) {
+    for (const [block, location] of [
+      [{ type: 'paragraph', text: 'Bad step', revealStep }, 'slide.content[0]'],
+      [{ type: 'table', headers: [{ text: 'Bad step', revealStep }], rows: [[0]] }, 'Header [0]'],
+      [{ type: 'table', rows: [[{ text: 'Bad step', revealStep }]] }, 'Row [0] Cell [0]']
+    ]) {
+      const result = validateGraphBlock(block);
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((error) => error.includes(location) &&
+        error.includes("'revealStep' must be a positive integer")), result.errors.join('; '));
+    }
+  }
+});
