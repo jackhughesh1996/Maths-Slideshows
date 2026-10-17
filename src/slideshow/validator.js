@@ -5,6 +5,8 @@
  * and reports developer-friendly console errors and warnings for schema drift.
  */
 
+import { auditLessonMath, formatMathIssue } from './mathExpressions.js';
+
 import {
   SUPPORTED_SLIDE_TYPES,
   normalizeSlideType,
@@ -1365,6 +1367,8 @@ export function validateLesson(lesson, options = {}) {
       }
     });
   });
+
+  errors.push(...auditLessonMath(lesson).issues.map(formatMathIssue));
 
   reportToConsole(errors, warnings, options.silent);
 

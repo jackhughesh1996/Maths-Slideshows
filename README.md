@@ -50,6 +50,19 @@ npm run lint
 ```
 Runs TypeScript type validation (`tsc --noEmit`) to verify lesson schemas and application code without emitting output.
 
+### Mathematical Notation Audit
+
+Run `npm run audit:math` to audit every lesson registered in
+`src/lessons/manifest.js`. The command and lesson validation share the renderer's
+math-expression detection and fail on malformed delimiters, invalid KaTeX, or
+mathematical commands outside delimiters. Errors identify the lesson, slide,
+nested property path and character offset.
+
+Use `$...$` for inline math and `$$...$$` for display math. Dedicated `latex`,
+`checkMath`, `calculation` and string-valued `fraction` fields contain raw LaTeX.
+Escape literal dollars as `\$`; ordinary prices such as `$5 and $10` remain text.
+Explicit `$25$` is a numeric formula. Inline backtick code is treated literally.
+
 ### Browser Smoke Tests
 
 ```bash
