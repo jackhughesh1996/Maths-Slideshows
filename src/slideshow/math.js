@@ -5,6 +5,7 @@
  */
 
 import katex from 'katex';
+import { MATH_OPTIONS, scanMathText, unescapeDollarSigns } from './mathExpressions.js';
 import 'katex/dist/katex.min.css';
 
 /**
@@ -40,8 +41,7 @@ export function renderMath(latex, { display = false } = {}) {
     const html = katex.renderToString(trimmed, {
       displayMode: Boolean(display),
       throwOnError: false, // Prevents throwing on unrecognized commands
-      output: 'html',
-      strict: false,
+      ...MATH_OPTIONS,
     });
 
     // Detect when throwOnError: false silently emitted KaTeX red error markup
@@ -85,23 +85,12 @@ export function renderRichText(text) {
     return `\x02TOKEN_${id}\x03`;
   };
 
-  let str = text;
-
-  // 1. Extract display math $$...$$
-  str = str.replace(/\$\$([\s\S]+?)\$\$/g, (_, equation) => {
-    return storeToken(renderMath(equation, { display: true }));
-  });
-
-  // 2. Extract inline math $...$ (ignoring escaped \$)
-  str = str.replace(/(^|[^\\])\$([^\$]+?)\$/g, (_, prefix, equation) => {
-    return prefix + storeToken(renderMath(equation, { display: false }));
-  });
-  str = str.replace(/\\\$/g, '$');
-
-  // 3. Extract inline code `...`
-  str = str.replace(/`([^`\r\n]+)`/g, (_, code) => {
-    return storeToken(`<code class="inline-code">${escapeHtml(code)}</code>`);
-  });
+  // The same expression spans are consumed by lesson validation and auditing.
+  let str = scanMathText(text).tokens.map((token) => {
+    if (token.type === 'math') return storeToken(renderMath(token.value, { display: token.display }));
+    if (token.type === 'code') return storeToken(`<code class="inline-code">${escapeHtml(token.value)}</code>`);
+    return unescapeDollarSigns(token.value);
+  }).join('');
 
   // 4. Escape ordinary HTML in the remaining text
   str = escapeHtml(str);

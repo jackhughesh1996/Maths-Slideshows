@@ -6,6 +6,7 @@ import { test } from 'node:test';
 const mathUrl = new URL('../src/slideshow/math.js', import.meta.url);
 let mathSource = await readFile(mathUrl, 'utf8');
 mathSource = mathSource.replace("import katex from 'katex';", `import katex from ${JSON.stringify(import.meta.resolve('katex'))};`)
+  .replace("from './mathExpressions.js'", `from ${JSON.stringify(import.meta.resolve('../src/slideshow/mathExpressions.js'))}`)
   .replace("import 'katex/dist/katex.min.css';", '');
 const asModule = (source) => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 let source = await readFile(new URL('../src/slideshow/experimentalSimulations.js', import.meta.url), 'utf8');
