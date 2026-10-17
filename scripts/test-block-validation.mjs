@@ -881,3 +881,76 @@ test('numbered reveal settings still require positive integer step numbers', () 
     }
   }
 });
+
+test('standalone solution reveal defaults and numbered roots remain valid', () => {
+  for (const flags of [{}, { reveal: true }, { revealStep: 4 }, { reveal: true, revealStep: 4 }, { reveal: false }]) {
+    const result = validateGraphBlock({ type: 'solution', text: 'Answer', ...flags });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  }
+  assert.equal(validateGraphBlock({ type: 'solution', text: 'Answer', reveal: false, revealStep: 4 }).valid, false);
+});
+
+test('sector construction and workspaces reject block-level reveal metadata but accept child reveals', () => {
+  for (const block of [
+    { type: 'sector-construction', categories: [{ label: 'A', value: 1 }] },
+    { type: 'board-workspace', content: [{ type: 'paragraph', text: 'Child', revealStep: 3 }] }
+  ]) {
+    assert.equal(validateGraphBlock(block).valid, true);
+    for (const flags of [{ reveal: true }, { reveal: false }, { revealStep: 1 }]) {
+      const result = validateGraphBlock({ ...block, ...flags });
+      assert.equal(result.valid, false);
+      const prop = Object.keys(flags)[0];
+      assert.ok(result.errors.some((error) => error.includes('slide.content[0]') &&
+        error.includes(`Block-level '${prop}' is unsupported for ${block.type}`)), result.errors.join('; '));
+    }
+  }
+});
+
+for (const type of ['measured-bar', 'divided-bar']) {
+  test(`${type} rejects conflicting outer and progressive reveals while retaining nonprogressive roots`, () => {
+    const block = { type, categories: [{ label: 'A', value: 1 }] };
+    for (const flags of [{ reveal: true }, { revealStep: 2 }, { reveal: true, revealStep: 2 }]) {
+      const result = validateGraphBlock({ ...block, progressive: true, ...flags });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((error) => error.includes('slide.content[0]') &&
+        error.includes('cannot combine outer')), result.errors.join('; '));
+      const nonprogressive = validateGraphBlock({ ...block, progressive: false, ...flags });
+      assert.equal(nonprogressive.valid, true, nonprogressive.errors.join('; '));
+    }
+    for (const flags of [{}, { reveal: false }]) {
+      const result = validateGraphBlock({ ...block, progressive: true, ...flags });
+      assert.equal(result.valid, true, result.errors.join('; '));
+    }
+  });
+}
+
+test('separate solution owners reject conflicting disabled roots and internally progressive graphs', () => {
+  const validateSeparate = (solution) => validateLesson(makeLesson({
+    type: 'board-task', title: 'Separate answers', prompt: 'Question', separateSolutions: true, solution
+  }), { silent: true });
+  const valid = validateSeparate([
+    { type: 'solution', title: 'Answer', text: 'Working', revealStep: 2 },
+    { type: 'paragraph', text: 'Second answer', reveal: true }
+  ]);
+  assert.equal(valid.valid, true, valid.errors.join('; '));
+  for (const block of [
+    { type: 'paragraph', text: 'Hidden answer', reveal: false },
+    { type: 'sector-construction', categories: [{ label: 'A', value: 1 }] },
+    { type: 'measured-bar', progressive: true, categories: [{ label: 'A', value: 1 }] },
+    { type: 'divided-bar', progressive: true, categories: [{ label: 'A', value: 1 }] },
+    { type: 'solution', blocks: [{ type: 'measured-bar', progressive: true, categories: [{ label: 'A', value: 1 }] }] }
+  ]) {
+    const result = validateSeparate([block]);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((error) => error.includes('slide.solution[0]') &&
+      (error.includes('separate solution reveal') || error.includes('cannot use'))), result.errors.join('; '));
+  }
+});
+
+test('existing 8F composite graphs and 8I solution configurations remain valid', async () => {
+  for (const id of ['8F', '8I']) {
+    const { default: lesson } = await import(`../src/lessons/${id}.js`);
+    const result = validateLesson(lesson, { silent: true });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  }
+});

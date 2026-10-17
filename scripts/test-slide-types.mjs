@@ -56,6 +56,23 @@ rendererSource = rendererSource
 
 const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));
 
+// Use the actual grouping algorithm with reveal elements extracted from rendered
+// HTML, without constructing the engine's browser-only subsystems.
+const engineSource = (await readFile(new URL('../src/slideshow/engine.js', import.meta.url), 'utf8'))
+  .replace(/^import .*;\n/gm, '');
+const { SlideshowEngine } = await import(asModule(engineSource));
+function getRenderedRevealSteps(html) {
+  const items = [...html.matchAll(/<[^>]+>/g)].map(([tag]) => tag)
+    .filter((tag) => /class="[^"]*\breveal-item\b/.test(tag)).map((tag) => {
+      const step = tag.match(/data-reveal-step="([^"]+)"/);
+      return { dataset: step ? { revealStep: step[1] } : {}, tag };
+    });
+  return SlideshowEngine.prototype.getSlideRevealSteps.call({
+    currentSlideIndex: 0,
+    slideElements: [{ querySelectorAll: () => items }]
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 1. Shared Definitions and Normalisation Tests
 // ---------------------------------------------------------------------------
@@ -999,21 +1016,7 @@ test('table spans activate reveals for a step alone and preserve unnumbered and 
 });
 
 test('rendered numbered and automatic reveals retain the unchanged engine grouping rules', async () => {
-  // Exercise the real method without constructing browser-only subsystems.
-  const engineSource = (await readFile(new URL('../src/slideshow/engine.js', import.meta.url), 'utf8'))
-    .replace(/^import .*;\n/gm, '');
-  const { SlideshowEngine } = await import(asModule(engineSource));
-  const getSteps = (blocks) => {
-    const tags = [...renderBlocks(blocks).matchAll(/<[^>]+>/g)].map(([tag]) => tag);
-    const items = tags.filter((tag) => /class="[^"]*\breveal-item\b/.test(tag)).map((tag) => {
-      const step = tag.match(/data-reveal-step="([^"]+)"/);
-      return { dataset: step ? { revealStep: step[1] } : {} };
-    });
-    return SlideshowEngine.prototype.getSlideRevealSteps.call({
-      currentSlideIndex: 0,
-      slideElements: [{ querySelectorAll: () => items }]
-    });
-  };
+  const getSteps = (blocks) => getRenderedRevealSteps(renderBlocks(blocks));
   const automatic = getSteps([
     { type: 'paragraph', text: 'First', reveal: true },
     { type: 'paragraph', text: 'Second', reveal: true }
@@ -1037,7 +1040,6 @@ test('rendered numbered and automatic reveals retain the unchanged engine groupi
 
 test('special containers and progressive graph internals keep their existing reveal markup', () => {
   for (const block of [
-    { type: 'solution', blocks: [{ type: 'paragraph', text: 'Answer' }] },
     { type: 'sector-construction', categories: [{ label: 'A', value: 1 }] },
     { type: 'board-workspace', content: [{ type: 'paragraph', text: 'Workspace' }] }
   ]) {
@@ -1046,7 +1048,139 @@ test('special containers and progressive graph internals keep their existing rev
   const progressive = { type: 'measured-bar', progressive: true, check: 'Check',
     categories: [{ label: 'A', value: 1 }] };
   const original = renderBlock(progressive);
-  const numbered = renderBlock({ ...progressive, revealStep: 5 });
-  assert.equal(numbered.replace(/class="measured-bar-container reveal-item" data-reveal-step="5"/,
-    'class="measured-bar-container "'), original);
+  assert.match(original, /class="measured-bar-container "/);
+  const steps = getRenderedRevealSteps(original);
+  assert.equal(steps.hasCustomSteps, false);
+  assert.equal(steps.totalSteps, 2); // one segment followed by the check
+  assert.match(steps.itemsByStep.get(1)[0].tag, /measured-bar-segment/);
+  assert.match(steps.itemsByStep.get(2)[0].tag, /measured-bar-check/);
+});
+
+test('standalone solutions retain automatic reveal and support numbered or disabled roots', () => {
+  const block = { type: 'solution', title: 'Answer', text: 'Answer text', latex: 'x=0',
+    blocks: [{ type: 'paragraph', text: 'Working' }] };
+  const automatic = renderBlock(block);
+  assert.match(automatic, /class="solution-container reveal-item"/);
+  assert.equal(getRenderedRevealSteps(automatic).totalSteps, 1);
+  for (const reveal of [undefined, true]) {
+    const html = renderBlock({ ...block, reveal, revealStep: 4 });
+    assert.match(html, /class="solution-container reveal-item" data-reveal-step="4"/);
+    assert.equal((html.match(/class="solution-badge"/g) || []).length, 1);
+    assert.ok(html.includes('Answer text') && html.includes('Working') && html.includes('class="katex"'));
+    const steps = getRenderedRevealSteps(html);
+    assert.deepEqual(steps.stepNumbers, [4]);
+    assert.equal(steps.itemsByStep.get(4).length, 1);
+  }
+  assert.equal(getRenderedRevealSteps(renderBlock({ ...block, reveal: false })).totalSteps, 0);
+  const nested = getRenderedRevealSteps(renderBlock({ ...block,
+    blocks: [{ type: 'paragraph', text: 'Intentional child step', revealStep: 3 }] }));
+  assert.deepEqual(nested.stepNumbers, [1, 3]);
+});
+
+for (const type of ['board-task', 'we-do']) {
+  test(`${type} separateSolutions gives each answer one reveal owner and one badge`, () => {
+    const slide = { type, title: 'Answers', separateSolutions: true,
+      leftBlocks: [{ type: 'paragraph', text: 'Question' }],
+      solution: [
+        { type: 'solution', badgeTitle: 'First badge', title: 'Inner title', text: 'First answer', latex: 'x=0',
+          blocks: [{ type: 'paragraph', text: 'Child working' }] },
+        { type: 'paragraph', reveal: true, revealStep: 4, badgeTitle: 'Second badge', text: 'Second answer $x=1$' }
+      ] };
+    const before = structuredClone(slide);
+    const html = renderSlide(slide, 0).innerHTML;
+    assert.deepEqual(slide, before, 'Rendering must not remove reveal metadata from the source');
+    assert.equal((html.match(/class="reveal-item solution-container"/g) || []).length, 2);
+    assert.equal((html.match(/class="solution-badge"/g) || []).length, 2);
+    for (const text of ['First badge', 'Second badge', 'First answer', 'Child working', 'Second answer']) {
+      assert.ok(html.includes(text), text);
+    }
+    assert.ok(html.includes('class="katex"'));
+    assert.doesNotMatch(html, /class="block-paragraph reveal-item"|class="solution-container reveal-item"/);
+    const steps = getRenderedRevealSteps(html);
+    assert.deepEqual(steps.stepNumbers, [1, 4]);
+    assert.equal(steps.totalSteps, 2);
+    assert.equal(steps.itemsByStep.get(1).length, 1);
+    assert.equal(steps.itemsByStep.get(4).length, 1);
+
+    const grouped = renderSlide({ ...slide, solution: slide.solution.map((block) => ({ ...block, revealStep: 2 })) }, 0).innerHTML;
+    assert.deepEqual(getRenderedRevealSteps(grouped).stepNumbers, [2]);
+    assert.equal(getRenderedRevealSteps(grouped).itemsByStep.get(2).length, 2);
+  });
+}
+
+test('workspace child reveals retain automatic and explicit engine grouping', () => {
+  const html = renderBlock({ type: 'board-workspace', content: [
+    { type: 'paragraph', text: 'Automatic', reveal: true },
+    { type: 'solution', title: 'Numbered child', text: 'Answer', revealStep: 4 }
+  ] });
+  assert.doesNotMatch(html, /board-workspace/);
+  const steps = getRenderedRevealSteps(html);
+  assert.deepEqual(steps.stepNumbers, [1, 4]);
+  assert.equal(steps.itemsByStep.get(1).length, 1);
+  assert.equal(steps.itemsByStep.get(4).length, 1);
+});
+
+test('8F sector construction retains calculation, sector and final-check groups', async () => {
+  const { default: lesson } = await import('../src/lessons/8F.js');
+  const slide = lesson.slides.find((slide) => slide.workspaceContent?.some((block) => block.type === 'sector-construction'));
+  assert.ok(slide, 'The real 8F sector construction must be tested');
+  const block = slide.workspaceContent.find((block) => block.type === 'sector-construction');
+  const steps = getRenderedRevealSteps(renderSlide(slide, 0).innerHTML);
+  assert.deepEqual(steps.stepNumbers, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  for (let index = 0; index < block.categories.length; index++) {
+    assert.match(steps.itemsByStep.get(index * 2 + 1)[0].tag, /calc-revealed-value/);
+    assert.match(steps.itemsByStep.get(index * 2 + 2)[0].tag, /sector-construction-group/);
+  }
+  assert.equal(steps.itemsByStep.get(9).length, 2); // table sum and chart check reveal together
+  assert.ok(steps.itemsByStep.get(9).some((item) => /sector-construction-check/.test(item.tag)));
+  assert.ok(steps.itemsByStep.get(9).some((item) => /calc-revealed-value/.test(item.tag)));
+});
+
+test('8F progressive bar retains segment order and final check without an outer reveal', async () => {
+  const { default: lesson } = await import('../src/lessons/8F.js');
+  const slide = lesson.slides.find((slide) => slide.rightBlocks?.some((block) => block.progressive));
+  assert.ok(slide, 'The real 8F progressive bar must be tested');
+  const steps = getRenderedRevealSteps(renderSlide(slide, 0).innerHTML);
+  assert.equal(steps.hasCustomSteps, false);
+  assert.deepEqual(steps.stepNumbers, [1, 2, 3, 4, 5]);
+  for (const step of [1, 2, 3, 4]) assert.match(steps.itemsByStep.get(step)[0].tag, /measured-bar-segment/);
+  assert.match(steps.itemsByStep.get(5)[0].tag, /measured-bar-check/);
+});
+
+test('8I separate answers share the intended table groups without duplicate nested reveals', async () => {
+  const { default: lesson } = await import('../src/lessons/8I.js');
+  const slides = lesson.slides.filter((slide) => slide.separateSolutions);
+  assert.equal(slides.length, 2);
+  for (const slide of slides) {
+    const html = renderSlide(slide, 0).innerHTML;
+    const steps = getRenderedRevealSteps(html);
+    assert.deepEqual(steps.stepNumbers, [1, 2]);
+    const table = slide.leftBlocks?.find((block) => block.type === 'table');
+    const perGroup = table ? table.rows.length + 2 : 1; // header + rows + answer
+    for (const step of [1, 2]) assert.equal(steps.itemsByStep.get(step).length, perGroup);
+    assert.doesNotMatch(html, /class="block-paragraph reveal-item"/);
+    for (const block of slide.solution) assert.ok(html.includes(block.badgeTitle));
+  }
+});
+
+test('separate solution descendants reveal atomically without losing nested badges or content', () => {
+  const slide = { type: 'board-task', title: 'Nested answer', prompt: 'Question', separateSolutions: true,
+    solution: [{ type: 'solution', title: 'Outer answer', revealStep: 4, blocks: [
+      { type: 'paragraph', text: 'Nested working $x=0$', revealStep: 2 },
+      { type: 'solution', title: 'Nested answer badge', text: 'Nested answer text' },
+      { type: 'table', headers: [{ text: 'Header', reveal: true }], rows: [[{ text: 0, revealStep: 7 }]] },
+      { type: 'board-workspace', content: [{ type: 'paragraph', text: 'Workspace answer', reveal: true }] }
+    ] }] };
+  const original = structuredClone(slide);
+  const html = renderSlide(slide, 0).innerHTML;
+  assert.deepEqual(slide, original);
+  const steps = getRenderedRevealSteps(html);
+  assert.deepEqual(steps.stepNumbers, [4]);
+  assert.equal(steps.itemsByStep.get(4).length, 1);
+  assert.equal((html.match(/class="solution-badge"/g) || []).length, 2);
+  for (const text of ['Outer answer', 'Nested answer badge', 'Nested answer text', 'Nested working', 'Header', 'Workspace answer']) {
+    assert.ok(html.includes(text), text);
+  }
+  assert.ok(html.includes('class="katex"'));
+  assert.ok(html.includes('<td><span>0</span></td>'));
 });

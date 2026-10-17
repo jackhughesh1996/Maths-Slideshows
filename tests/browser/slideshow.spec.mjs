@@ -94,8 +94,33 @@ for (const { id, lesson } of lessons) {
       // assuming a fixed number of steps. The DOM count bounds the loop even
       // when explicit reveal-step attributes group several items together.
       const maxReveals = await activeSlide.locator('.reveal-item').count();
+      const groups = await activeSlide.locator('.reveal-item').evaluateAll((items) => {
+        const explicit = items.some((item) => item.dataset.revealStep !== undefined);
+        const counts = new Map();
+        items.forEach((item, index) => {
+          const step = explicit ? Number(item.dataset.revealStep ?? 1) : index + 1;
+          counts.set(step, (counts.get(step) || 0) + 1);
+        });
+        return [...counts].sort(([a], [b]) => a - b);
+      });
+      if (id === '8F' && lesson.slides[index].workspaceContent?.some((block) => block.type === 'sector-construction')) {
+        expect(groups).toEqual([[1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 2]]);
+      }
+      if (id === '8F' && lesson.slides[index].rightBlocks?.some((block) => block.progressive)) {
+        expect(groups).toEqual([[1, 1], [2, 1], [3, 1], [4, 1], [5, 1]]);
+      }
+      if (id === '8I' && lesson.slides[index].separateSolutions) {
+        const table = lesson.slides[index].leftBlocks?.find((block) => block.type === 'table');
+        const perGroup = table ? table.rows.length + 2 : 1;
+        expect(groups).toEqual([[1, perGroup], [2, perGroup]]);
+        await expect(activeSlide.locator('.solution-container .reveal-item')).toHaveCount(0);
+      }
+      await expect(activeSlide.locator('.reveal-item.is-revealed')).toHaveCount(0);
+      let revealedCount = 0;
       for (let step = 0; step < maxReveals && (await next.getAttribute('aria-label')).startsWith('Reveal step '); step++) {
         await next.click();
+        revealedCount += groups[step][1];
+        await expect(activeSlide.locator('.reveal-item.is-revealed')).toHaveCount(revealedCount);
         await expect(activeSlide).toHaveAttribute('data-slide-index', String(index));
         await expectNoMathErrors(page);
       }

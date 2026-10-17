@@ -740,6 +740,28 @@ export function validateLesson(lesson, options = {}) {
         }
       }
 
+      // Composite blocks own their reveal sequence, or have no root to reveal.
+      if (canonicalBType === 'sector-construction' || canonicalBType === 'board-workspace') {
+        for (const prop of ['reveal', 'revealStep']) {
+          if (block[prop] !== undefined) {
+            errors.push(`${blockDesc}: Block-level '${prop}' is unsupported for ${canonicalBType}; configure child/internal reveals instead.`);
+          }
+        }
+      }
+      if (canonicalBType === 'measured-bar' && block.progressive === true &&
+          (block.reveal === true || block.revealStep !== undefined)) {
+        errors.push(`${blockDesc}: Progressive ${bType} cannot combine outer 'reveal'/'revealStep' with internal reveal steps.`);
+      }
+
+      if (slide.separateSolutions === true && /^slide\.solution\[\d+\]/.test(path)) {
+        if (canonicalBType === 'sector-construction' || (canonicalBType === 'measured-bar' && block.progressive === true)) {
+          errors.push(`${blockDesc}: An internally progressive graph cannot be nested in a separate solution reveal; place it in workspaceContent or rightBlocks instead.`);
+        }
+        if (/^slide\.solution\[\d+\]$/.test(path) && block.reveal === false) {
+          errors.push(`${blockDesc}: A separate solution entry cannot use 'reveal: false'; its solution container owns the reveal.`);
+        }
+      }
+
       // Shared property data type checks
       if (block.reveal !== undefined && typeof block.reveal !== 'boolean') {
         errors.push(`${blockDesc}: 'reveal' must be a boolean (got ${typeof block.reveal}).`);
