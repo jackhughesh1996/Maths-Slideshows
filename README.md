@@ -48,7 +48,7 @@ Runs the catalogue and static page generators once at startup (`scripts/generate
 ```bash
 npm run lint
 ```
-Runs TypeScript type validation (`tsc --noEmit`) to verify lesson schemas and application code without emitting output.
+Runs TypeScript checks (`tsc --noEmit`) without emitting output. Lesson schema, mathematics and graph consistency validation run through the dev/build generators and regression tests; run `npm test` and `npm run audit:math` too.
 
 ### Mathematical Notation Audit
 
@@ -179,6 +179,8 @@ Safe file cleanup automatically purges obsolete launchers from both folders when
 
 ## 5. Architecture Overview
 
+Abbreviated tree; `manifest.js` currently registers lessons 8E–8I.
+
 ```text
 maths-slideshows/
 ├── index.html                           # Root Library page (metadata only, no eager slide bundles)
@@ -190,6 +192,7 @@ maths-slideshows/
 ├── README.md                            # Project overview & documentation
 ├── .github/
 │   └── workflows/
+│       ├── ci.yml                       # PR/main validation, including local browser tests
 │       └── deploy.yml                   # Automated GitHub Actions deployment to GitHub Pages
 ├── scripts/
 │   ├── generate-lesson-catalog.js       # Extracts metadata and validates lessons against schema
@@ -232,17 +235,22 @@ maths-slideshows/
 
 ## 6. Adding New Lessons
 
-To add a new lesson (e.g. `8G: Frequency Tables and Histograms`):
+To add a new lesson (e.g. `8J: Frequency Tables and Range`; 8E–8I already exist):
 
-1. Create `src/lessons/8G.js` and export your lesson configuration object as the default export.
+1. Create `src/lessons/8J.js` and export your lesson configuration object as the default export.
 2. Register the lesson in `src/lessons/manifest.js`:
    ```javascript
    export const lessonManifest = [
      { id: '8E', path: './8E.js' },
      { id: '8F', path: './8F.js' },
-     { id: '8G', path: './8G.js' }, // New lesson entry
+     { id: '8G', path: './8G.js' },
+     { id: '8H', path: './8H.js' },
+     { id: '8I', path: './8I.js' },
+     { id: '8J', path: './8J.js' }, // New lesson entry; retain existing entries
    ];
    ```
-3. Restart `npm run dev` (or run `npm run build`). Restarting `npm run dev` automatically regenerates the lesson catalogue (`src/generated/lesson-catalog.js`) and static HTML entry page (`lessons/8G/index.html`). Running `npm run build` runs the full production pipeline, which additionally generates downloadable student launchers in `dist/downloads/`.
+3. Restart `npm run dev` (or run `npm run build`). Restarting `npm run dev` automatically regenerates the lesson catalogue (`src/generated/lesson-catalog.js`) and static HTML entry page (`lessons/8J/index.html`). Running `npm run build` runs the full production pipeline, which additionally generates downloadable student launchers in `dist/downloads/`.
+
+Commit the authored lesson and manifest, excluding generated pages, catalogues and launchers. Submit changes on a branch for CI checks before merging.
 
 See the comprehensive [LESSON_AUTHORING.md](LESSON_AUTHORING.md) guide for complete slide schemas, visual components, math formulas, and authoring rules. You never need to touch the slideshow engine.
