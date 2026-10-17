@@ -92,6 +92,23 @@ Executes the full static production pipeline:
 3. Runs `vite build` to bundle the multi-page site into `dist/`.
 4. Runs `scripts/generate-launchers.js` to create standalone student HTML launchers in `dist/downloads/`.
 
+### Continuous Integration
+
+The `CI` workflow (`.github/workflows/ci.yml`) runs on pull requests targeting
+`main` and pushes to `main`. It uses Node.js 24, Bun and `bun ci`, then runs lint,
+unit tests, the math audit, a production build and local Chromium browser tests.
+It needs no repository secrets and does not use the live GitHub Pages site.
+Superseded CI runs are cancelled independently of deployment.
+
+For failures, open the pull request's **Checks** tab or the repository's
+**Actions → CI** run and inspect the failing step's logs. Browser-test failures
+also upload `playwright-failure-diagnostics` (HTML report and retained traces)
+for seven days. Any failed check fails the CI job.
+
+CI validates changes; it does not deploy pull requests. The separate Pages
+workflow below continues deploying pushes to `main` with its production URL
+and launcher validation. It runs independently of CI.
+
 ---
 
 ## 3. GitHub Pages Deployment
