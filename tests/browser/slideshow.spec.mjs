@@ -94,15 +94,7 @@ for (const { id, lesson } of lessons) {
       // assuming a fixed number of steps. The DOM count bounds the loop even
       // when explicit reveal-step attributes group several items together.
       const maxReveals = await activeSlide.locator('.reveal-item').count();
-      const groups = await activeSlide.locator('.reveal-item').evaluateAll((items) => {
-        const explicit = items.some((item) => item.dataset.revealStep !== undefined);
-        const counts = new Map();
-        items.forEach((item, index) => {
-          const step = explicit ? Number(item.dataset.revealStep ?? 1) : index + 1;
-          counts.set(step, (counts.get(step) || 0) + 1);
-        });
-        return [...counts].sort(([a], [b]) => a - b);
-      });
+      const groups = await revealGroups(page);
       if (id === '8F' && lesson.slides[index].workspaceContent?.some((block) => block.type === 'sector-construction')) {
         expect(groups).toEqual([[1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 2]]);
       }
@@ -143,3 +135,292 @@ for (const { id, lesson } of lessons) {
     await expectNoMathErrors(page);
   });
 }
+
+// Each Playwright test gets a fresh browser context/storage. These helpers only
+// read rendered output; all state changes go through classroom controls.
+const activeSlide = (page) => page.locator('#slideViewport .slide.active');
+
+async function revealGroups(page) {
+  return activeSlide(page).locator('.reveal-item').evaluateAll((items) => {
+    const explicit = items.some((item) => item.dataset.revealStep !== undefined);
+    const counts = new Map();
+    items.forEach((item, index) => {
+      const step = explicit ? Number(item.dataset.revealStep ?? 1) : index + 1;
+      counts.set(step, (counts.get(step) || 0) + 1);
+    });
+    return [...counts].sort(([a], [b]) => a - b);
+  });
+}
+
+async function finishReveals(page) {
+  const next = page.locator('#btnNextSlide');
+  for (const _ of await revealGroups(page)) {
+    if (!(await next.getAttribute('aria-label')).startsWith('Reveal step ')) break;
+    await next.click();
+  }
+  await expect(next).toHaveAttribute('aria-label', 'Advance to next slide');
+}
+
+async function openLessonAt(page, id, index = 0) {
+  const { lesson } = lessons.find((entry) => entry.id === id);
+  expect(index).toBeGreaterThanOrEqual(0);
+  await openPage(page, `/lessons/${encodeURIComponent(id)}/`);
+  for (let current = 0; current < index; current++) {
+    await finishReveals(page);
+    await page.locator('#btnNextSlide').click();
+    await expect(page.locator('#presSlideCounter')).toHaveText(`${current + 2} / ${lesson.slides.length}`);
+  }
+  return lesson;
+}
+
+async function expectRevealState(page, lesson, index, groups, count) {
+  await expect(activeSlide(page)).toHaveAttribute('data-slide-index', String(index));
+  await expect(page.locator('#presSlideCounter')).toHaveText(`${index + 1} / ${lesson.slides.length}`);
+  await expect(activeSlide(page).locator('.reveal-item.is-revealed'))
+    .toHaveCount(groups.slice(0, count).reduce((sum, [, size]) => sum + size, 0));
+  const indicator = page.locator('#presStepIndicator');
+  await expect(indicator.locator('.step-dot')).toHaveCount(groups.length);
+  await expect(indicator.locator('.step-dot.filled')).toHaveCount(count);
+  const complete = count === groups.length;
+  await expect(indicator.locator('.step-text')).toHaveText(count === 0
+    ? `${groups.length} reveals` : complete ? 'All shown · → next slide' : `${count} of ${groups.length}`);
+  await expect(page.locator('#btnNextSlide')).toHaveAttribute('aria-label', complete
+    ? 'Advance to next slide' : `Reveal step ${count + 1} of ${groups.length}`);
+  await expect(page.locator('#btnPrevSlide')).toHaveAttribute('aria-label', count
+    ? `Step back to step ${count - 1} of ${groups.length}` : 'Go to previous slide');
+}
+
+for (const id of ['8E', '8I']) {
+  test(`${id}: keyboard reveals, indicators and saved reveal state`, async ({ page }) => {
+    const { lesson } = lessons.find((entry) => entry.id === id);
+    const index = lesson.slides.findIndex((slide) => id === '8E'
+      ? slide.type === 'worked-example' : slide.separateSolutions && slide.leftBlocks?.some((block) => block.type === 'table'));
+    await openLessonAt(page, id, index);
+    const groups = await revealGroups(page);
+    expect(groups.length).toBeGreaterThanOrEqual(2);
+    if (id === '8E') expect(groups.length).toBe(lesson.slides[index].steps.length);
+    else expect(groups.map(([number]) => number)).toEqual(lesson.slides[index].solution.map((block) => block.revealStep));
+    await expectRevealState(page, lesson, index, groups, 0);
+
+    await page.keyboard.press('Space');
+    await expectRevealState(page, lesson, index, groups, 1);
+    await page.keyboard.press('ArrowRight');
+    await expectRevealState(page, lesson, index, groups, 2);
+    await page.keyboard.press('ArrowLeft');
+    await expectRevealState(page, lesson, index, groups, 1);
+    for (let count = 2; count <= groups.length; count++) {
+      await page.keyboard.press(count % 2 ? 'Space' : 'ArrowRight');
+      await expectRevealState(page, lesson, index, groups, count);
+    }
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#presSlideCounter')).toHaveText(`${index + 2} / ${lesson.slides.length}`);
+    await page.keyboard.press('ArrowLeft');
+    await expectRevealState(page, lesson, index, groups, groups.length);
+    for (let count = groups.length - 1; count >= 0; count--) {
+      await page.keyboard.press('ArrowLeft');
+      await expectRevealState(page, lesson, index, groups, count);
+    }
+    await page.keyboard.press('ArrowLeft');
+    await expect(activeSlide(page)).toHaveAttribute('data-slide-index', String(index - 1));
+    await expect(page.locator('#presSlideCounter')).toHaveText(`${index} / ${lesson.slides.length}`);
+  });
+}
+
+test('classroom timer configures, ticks, pauses and restores per-slide time', async ({ page }) => {
+  const { lesson } = lessons.find(({ id }) => id === '8E');
+  const index = lesson.slides.findIndex((slide) => slide.timerMinutes > 0);
+  await openLessonAt(page, lesson.id, index);
+  const timer = page.locator('#presTimerWidget');
+  const display = timer.locator('.timer-time');
+  const duration = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  await expect(timer).toBeVisible();
+  await expect(display).toHaveText(duration(Math.round(lesson.slides[index].timerMinutes * 60)));
+  // Freeze only after the lesson has loaded; runFor delivers every interval tick
+  // without waiting for classroom minutes or relying on wall-clock boundaries.
+  const epoch = new Date('2026-01-01T00:00:00Z');
+  await page.clock.install({ time: epoch });
+  await page.clock.pauseAt(new Date(epoch.getTime() + 1000));
+  await timer.getByRole('button', { name: 'Start Timer', exact: true }).click();
+  await page.clock.runFor(3000);
+  await expect(display).toHaveText(duration(lesson.slides[index].timerMinutes * 60 - 3));
+  await timer.getByRole('button', { name: 'Pause Timer', exact: true }).click();
+  await page.clock.runFor(5000);
+  await expect(display).toHaveText(duration(lesson.slides[index].timerMinutes * 60 - 3));
+  await timer.getByRole('button', { name: 'Reset Timer', exact: true }).click();
+  await expect(display).toHaveText(duration(lesson.slides[index].timerMinutes * 60));
+
+  await timer.getByRole('button', { name: 'Configure timer duration', exact: true }).click();
+  await timer.getByRole('button', { name: '3 min', exact: true }).click();
+  await expect(display).toHaveText('03:00');
+  await timer.getByRole('button', { name: 'Configure timer duration', exact: true }).click();
+  const input = timer.locator('.timer-custom-input');
+  await expect(input).toBeFocused();
+  const counter = await page.locator('#presSlideCounter').textContent();
+  const revealed = await activeSlide(page).locator('.reveal-item.is-revealed').count();
+  for (const key of ['Space', 'ArrowRight', 'ArrowLeft', 'p', 'f']) {
+    await input.press(key);
+    await expect(page.locator('#presSlideCounter')).toHaveText(counter);
+    await expect(activeSlide(page).locator('.reveal-item.is-revealed')).toHaveCount(revealed);
+  }
+  await expect(page.locator('#btnTogglePen')).not.toHaveClass(/active/);
+  expect(await page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
+  await input.fill('7');
+  await timer.getByRole('button', { name: 'Set', exact: true }).click();
+  await expect(display).toHaveText('07:00');
+  await finishReveals(page);
+  await timer.getByRole('button', { name: 'Start Timer', exact: true }).click();
+  await page.clock.runFor(4000);
+  await expect(display).toHaveText('06:56');
+  await page.locator('#btnNextSlide').click();
+  await expect(page.locator('#presSlideCounter')).toHaveText(`${index + 2} / ${lesson.slides.length}`);
+  await expect(timer).not.toBeVisible();
+  await page.clock.runFor(10000);
+  await page.locator('#btnPrevSlide').click();
+  await expect(display).toHaveText('06:56');
+  await expect(timer.getByRole('button', { name: 'Start Timer', exact: true })).toBeVisible();
+  await page.clock.runFor(5000);
+  await expect(display).toHaveText('06:56');
+  await timer.getByRole('button', { name: 'Reset Timer', exact: true }).click();
+  await expect(display).toHaveText('07:00');
+});
+
+async function inkPixels(page) {
+  return page.locator('#drawingCanvas').evaluate((canvas) => {
+    const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    const counts = { ink: 0, blue: 0, green: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      if (!data[i + 3]) continue;
+      counts.ink++;
+      if (data[i + 2] > data[i] && data[i + 2] > data[i + 1]) counts.blue++;
+      if (data[i + 1] > data[i] && data[i + 1] > data[i + 2]) counts.green++;
+    }
+    return counts;
+  });
+}
+
+async function drawStroke(page, yFraction) {
+  const canvas = page.locator('#drawingCanvas');
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * yFraction);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * yFraction, { steps: 8 });
+  await page.mouse.up();
+}
+
+test('pen controls record coloured strokes and isolate/clear ink per slide', async ({ page }) => {
+  await openLessonAt(page, '8E');
+  const pen = page.locator('#btnTogglePen');
+  await expect.poll(() => inkPixels(page)).toEqual({ ink: 0, blue: 0, green: 0 });
+  await pen.click();
+  await expect(pen).toHaveClass(/active/);
+  await page.keyboard.press('p');
+  await expect(pen).not.toHaveClass(/active/);
+  await drawStroke(page, 0.4);
+  await expect.poll(() => inkPixels(page)).toEqual({ ink: 0, blue: 0, green: 0 });
+  await page.keyboard.press('p');
+  await expect(pen).toHaveClass(/active/);
+  await page.getByTitle('Blue', { exact: true }).click();
+  await expect(page.getByTitle('Blue', { exact: true })).toHaveClass(/active/);
+  await drawStroke(page, 0.4);
+  await expect.poll(async () => (await inkPixels(page)).blue).toBeGreaterThan(0);
+  const firstInk = await inkPixels(page);
+  await page.locator('#btnNextSlide').click();
+  await expect(activeSlide(page)).toHaveAttribute('data-slide-index', '1');
+  await expect.poll(() => inkPixels(page)).toEqual({ ink: 0, blue: 0, green: 0 });
+  await page.getByTitle('Green', { exact: true }).click();
+  await drawStroke(page, 0.6);
+  await expect.poll(async () => (await inkPixels(page)).green).toBeGreaterThan(0);
+  const secondInk = await inkPixels(page);
+  expect(secondInk.blue).toBe(0);
+  await page.locator('#btnPrevSlide').click();
+  await expect(activeSlide(page)).toHaveAttribute('data-slide-index', '0');
+  await expect.poll(() => inkPixels(page)).toEqual(firstInk);
+  await page.locator('#btnClearInk').click();
+  await expect.poll(() => inkPixels(page)).toEqual({ ink: 0, blue: 0, green: 0 });
+  await page.locator('#btnNextSlide').click();
+  await expect(activeSlide(page)).toHaveAttribute('data-slide-index', '1');
+  await expect.poll(() => inkPixels(page)).toEqual(secondInk);
+  await pen.click();
+  await expect(pen).not.toHaveClass(/active/);
+});
+
+test('teacher tools suspend shortcuts and persist an invented class for picker/teams', async ({ page }) => {
+  const lesson = await openLessonAt(page, '8E');
+  const tools = page.locator('#btnPresTeacherTools');
+  const modal = page.getByRole('dialog', { name: 'Teacher Classroom Tools' });
+  await tools.click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(modal).not.toBeVisible();
+  await tools.click();
+  await modal.getByRole('button', { name: '🎲 Random Student', exact: true }).focus();
+  for (const key of ['ArrowRight', 'ArrowLeft', 'Space', 'p', 'f']) {
+    await page.keyboard.press(key);
+    await expect(modal).toBeVisible();
+    await expect(page.locator('#presSlideCounter')).toHaveText(`1 / ${lesson.slides.length}`);
+  }
+  await expect(page.locator('#btnTogglePen')).not.toHaveClass(/active/);
+  expect(await page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(modal).not.toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#presSlideCounter')).toHaveText(`2 / ${lesson.slides.length}`);
+
+  await tools.click();
+  await modal.getByRole('button', { name: /Class Lists/ }).click();
+  const className = 'Presenter Test Class';
+  const names = ['Test Zephyr', 'Test Quasar', 'Test Comet', 'Test Nebula'];
+  page.once('dialog', (dialog) => dialog.accept(className));
+  await modal.getByRole('button', { name: '+ New Class', exact: true }).click();
+  await expect(modal.locator('#inputClassName')).toHaveValue(className);
+  const nameInput = modal.locator('#inputClassName');
+  await nameInput.fill('Typing');
+  await nameInput.press('End');
+  for (const key of ['Space', 'p', 'ArrowLeft', 'ArrowRight']) {
+    await nameInput.press(key);
+    await expect(page.locator('#presSlideCounter')).toHaveText(`2 / ${lesson.slides.length}`);
+  }
+  await expect(nameInput).toHaveValue('Typing p');
+  await nameInput.fill(className);
+  await modal.locator('#textareaPasteNames').fill(names.join('\n'));
+  await modal.getByRole('button', { name: 'Add to Class', exact: true }).click();
+  await expect(modal.locator('.tt-student-pill > span')).toHaveText(names);
+  const classSelect = modal.locator('#ttHeaderClassSelect');
+  await expect(classSelect.locator('option:checked')).toHaveText(`${className} (${names.length})`);
+
+  await modal.getByRole('button', { name: '🎲 Random Student', exact: true }).click();
+  await expect(modal.locator('#ttAvoidRepeats')).toBeChecked();
+  const picked = [];
+  for (let index = 0; index < names.length; index++) {
+    await modal.getByRole('button', { name: '🎲 Pick Random Student', exact: true }).click();
+    picked.push(await modal.locator('.tt-picker-name').textContent());
+    await expect(modal.locator('#ttPoolCount')).toHaveText(`${names.length - index - 1} of ${names.length} remaining`);
+  }
+  expect([...picked].sort()).toEqual([...names].sort());
+  await modal.getByRole('button', { name: /Team Generator/ }).click();
+  await modal.getByRole('button', { name: 'Pairs (2)', exact: true }).click();
+  await modal.getByRole('button', { name: '🎲 Generate Teams', exact: true }).click();
+  await expect(modal.locator('.tt-team-card')).toHaveCount(2);
+  await expect(modal.locator('.tt-team-card-count')).toHaveText(['2', '2']);
+  expect((await modal.locator('.tt-team-members li').allTextContents()).sort()).toEqual([...names].sort());
+
+  await modal.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('.presentation-view')).toBeVisible();
+  await tools.click();
+  await expect(classSelect.locator('option:checked')).toHaveText(`${className} (${names.length})`);
+  await modal.getByRole('button', { name: /Class Lists/ }).click();
+  await expect(modal.locator('#inputClassName')).toHaveValue(className);
+  await expect(modal.locator('.tt-student-pill > span')).toHaveText(names);
+});
+
+test('fullscreen control enters fullscreen and keyboard shortcut leaves it', async ({ page }) => {
+  await openLessonAt(page, '8E');
+  test.skip(!await page.evaluate(() => document.fullscreenEnabled), 'Fullscreen API unavailable in this runner');
+  await page.locator('#btnToggleFullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.tagName ?? null)).toBe('HTML');
+  await page.keyboard.press('f');
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(page.locator('#presSlideCounter')).toHaveText(`1 / ${lessons.find(({ id }) => id === '8E').lesson.slides.length}`);
+});
