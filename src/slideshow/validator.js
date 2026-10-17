@@ -6,6 +6,7 @@
  */
 
 import { auditLessonMath, formatMathIssue } from './mathExpressions.js';
+import { graphConsistency } from './graphConsistency.js';
 
 import {
   SUPPORTED_SLIDE_TYPES,
@@ -713,6 +714,7 @@ export function validateLesson(lesson, options = {}) {
 
       const bType = block.type;
       const blockDesc = `${slidePrefix} [${path}] (${bType || 'untyped'})`;
+      const blockErrorStart = errors.length;
 
       if (!bType || typeof bType !== 'string' || !bType.trim()) {
         errors.push(`${slidePrefix} [${path}]: Missing required 'type' property in block.`);
@@ -1234,6 +1236,12 @@ export function validateLesson(lesson, options = {}) {
         }
         if (block.checkLabel !== undefined && typeof block.checkLabel !== 'string') {
           errors.push(`${blockDesc}: ${bType} 'checkLabel' must be a string.`);
+        }
+      }
+
+      if (errors.length === blockErrorStart && ['sector-graph', 'sector-construction', 'measured-bar'].includes(canonicalBType)) {
+        for (const issue of graphConsistency(block, canonicalBType)) {
+          errors.push(`${slidePrefix} [${path}.${issue.path}]: ${issue.message} Observed ${issue.observed}; expected ${issue.expected}.`);
         }
       }
 

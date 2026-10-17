@@ -620,14 +620,23 @@ const nestedGraphCases = [
 for (const { type, key, numbers, required, strings } of nestedGraphCases) {
   test(`${type}.${key} accepts numeric alternatives, zeros and optional strings`, () => {
     for (const prop of required) {
-      for (const value of [0, 0.25, -1]) {
-        const result = validateGraphBlock({ type, [key]: [{ label: 'A', [prop]: value }] });
+      for (const value of [0, 0.25]) {
+        // Type-valid entries must now also describe a complete graph. Zero is
+        // retained as a category, paired with the remainder of the whole.
+        const first = { label: 'A', [prop]: value };
+        const second = { label: 'B', [prop]: (prop === 'angle' ? 360 : 1) - value };
+        if (type === 'sector-construction' && prop === 'fraction') {
+          first.angle = value * 360;
+          second.angle = (1 - value) * 360;
+        }
+        const result = validateGraphBlock({ type, [key]: [first, second] });
         assert.equal(result.valid, true, `${prop}=${value}: ${result.errors.join('; ')}`);
       }
     }
     const item = { label: 'A', ...Object.fromEntries(numbers.map((prop) => [prop, 0])),
       ...Object.fromEntries(strings.map((prop) => [prop, ''])) };
-    const result = validateGraphBlock({ type, [key]: [item] });
+    const remainder = { label: 'B', ...Object.fromEntries(numbers.map((prop) => [prop, prop === 'angle' ? 360 : 1])) };
+    const result = validateGraphBlock({ type, [key]: [item, remainder] });
     assert.equal(result.valid, true, result.errors.join('; '));
   });
 
@@ -663,7 +672,11 @@ for (const { type, key, numbers, required, strings } of nestedGraphCases) {
 for (const key of ['categories', 'items']) {
   test(`sector-construction.${key} accepts LaTeX fractions and rejects invalid fractions`, () => {
     for (const fraction of [0, 0.5, String.raw`\frac{1}{2}`]) {
-      const result = validateGraphBlock({ type: 'sector-construction', [key]: [{ label: 'A', fraction }] });
+      const proportion = typeof fraction === 'number' ? fraction : 0.5;
+      const result = validateGraphBlock({ type: 'sector-construction', [key]: [
+        { label: 'A', fraction, angle: proportion * 360 },
+        { label: 'B', angle: (1 - proportion) * 360 }
+      ] });
       assert.equal(result.valid, true, result.errors.join('; '));
     }
     for (const fraction of [NaN, Infinity, -Infinity, '', '   ', null, false, [], {}]) {
@@ -676,7 +689,7 @@ for (const key of ['categories', 'items']) {
 }
 
 test('sector-construction validates tableHeaders and nested notes without requiring optional fields', () => {
-  const block = { type: 'sector-construction', categories: [{ label: 'A', value: 0 }] };
+  const block = { type: 'sector-construction', categories: [{ label: 'A', value: 1 }] };
   for (const extras of [{}, { tableHeaders: [], notes: [] }, {
     tableHeaders: ['Category', '$x$', ''],
     notes: [{ type: 'solution', blocks: [{ type: 'paragraph', text: 'Valid note', reveal: true }] }]
