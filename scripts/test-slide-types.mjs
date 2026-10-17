@@ -54,7 +54,7 @@ rendererSource = rendererSource
   .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
   .replace("from './experimentalSimulations.js'", `from ${JSON.stringify(simMod)}`);
 
-const { renderSlide } = await import(asModule(rendererSource));
+const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));
 
 // ---------------------------------------------------------------------------
 // 1. Shared Definitions and Normalisation Tests
@@ -931,3 +931,122 @@ test('table renderer preserves numeric zero, empty text, ordinary strings, and r
 });
 
 
+
+const ordinaryRevealBlocks = [
+  { type: 'heading', level: 2, text: 'Heading' },
+  { type: 'paragraph', text: 'Text $x = 0$' },
+  { type: 'bullet-list', items: ['A'] },
+  { type: 'ordered-list', items: ['A'] },
+  { type: 'note-box', text: 'Note' },
+  { type: 'raw-data', data: '1, 2' },
+  { type: 'formula', latex: 'x=0' },
+  { type: 'table', headers: ['A'], rows: [[0]] },
+  { type: 'stem-and-leaf', rows: [{ stem: 1, leaves: '2' }] },
+  { type: 'sector-graph', items: [{ label: 'A', amount: 1 }] },
+  { type: 'measured-bar', categories: [{ label: 'A', value: 1 }] },
+  { type: 'divided-bar', categories: [{ label: 'A', value: 1 }] },
+  ...['spinner', 'spinners'].map((simType) => ({ type: 'simulation', simType,
+    spinners: [{ sectors: [{ label: 'A', angle: 360 }] }] })),
+  ...['counter-bag', 'bag-draw', 'pen-draw', 'box-draw'].map((simType) => ({ type: 'simulation', simType,
+    items: [{ label: 'A', count: 1 }] })),
+  ...['coin-class', 'coin-summary', 'coin-cumulative', 'basketball'].map((simType) => ({ type: 'simulation', simType }))
+];
+
+function withoutSimulationRevealConfig(html) {
+  // Simulation widgets serialize their input configuration in addition to HTML.
+  return html.replace(/(<script[^>]*class="sim-config"[^>]*>)([\s\S]*?)(<\/script>)/g,
+    (_, open, json, close) => {
+      const config = JSON.parse(json);
+      delete config.reveal;
+      delete config.revealStep;
+      return open + JSON.stringify(config) + close;
+    });
+}
+
+for (const block of ordinaryRevealBlocks) {
+  test(`${block.type}${block.simType ? `/${block.simType}` : ''} emits numbered reveals on its existing root`, () => {
+    const plainHtml = renderBlock(block);
+    const plainRoot = plainHtml.trimStart().match(/^<[^>]+>/)[0];
+    for (const reveal of [undefined, true]) {
+      const html = renderBlock({ ...block, reveal, revealStep: 3 });
+      const root = html.trimStart().match(/^<[^>]+>/)[0];
+      assert.match(root, /class="[^"]*\breveal-item\b[^"]*"/);
+      assert.match(root, /data-reveal-step="3"/);
+      // Same element and inner markup, with only root reveal metadata added.
+      assert.equal(withoutSimulationRevealConfig(html.replace(root, plainRoot)), plainHtml);
+    }
+    const automatic = renderBlock({ ...block, reveal: true });
+    const automaticRoot = automatic.trimStart().match(/^<[^>]+>/)[0];
+    assert.match(automaticRoot, /class="[^"]*\breveal-item\b[^"]*"/);
+    assert.doesNotMatch(automaticRoot, /data-reveal-step/);
+    assert.equal(withoutSimulationRevealConfig(automatic.replace(automaticRoot, plainRoot)), plainHtml);
+    assert.equal(withoutSimulationRevealConfig(renderBlock({ ...block, reveal: false })), plainHtml);
+  });
+}
+
+test('table spans activate reveals for a step alone and preserve unnumbered and plain cells', () => {
+  const html = renderBlock({
+    type: 'table',
+    headers: [{ text: 0, revealStep: 4 }, { text: 'Automatic', reveal: true }, { text: 'Plain', reveal: false }],
+    rows: [[{ text: 0, revealStep: 4 }, { text: 'Automatic', reveal: true }, { text: 'Plain' }]]
+  });
+  for (const tag of ['th', 'td']) {
+    assert.ok(html.includes(`<${tag}><span class="reveal-item" data-reveal-step="4">0</span></${tag}>`));
+    assert.ok(html.includes(`<${tag}><span class="reveal-item">Automatic</span></${tag}>`));
+    assert.ok(html.includes(`<${tag}><span>Plain</span></${tag}>`));
+  }
+  assert.equal((html.match(/class="reveal-item"/g) || []).length, 4);
+});
+
+test('rendered numbered and automatic reveals retain the unchanged engine grouping rules', async () => {
+  // Exercise the real method without constructing browser-only subsystems.
+  const engineSource = (await readFile(new URL('../src/slideshow/engine.js', import.meta.url), 'utf8'))
+    .replace(/^import .*;\n/gm, '');
+  const { SlideshowEngine } = await import(asModule(engineSource));
+  const getSteps = (blocks) => {
+    const tags = [...renderBlocks(blocks).matchAll(/<[^>]+>/g)].map(([tag]) => tag);
+    const items = tags.filter((tag) => /class="[^"]*\breveal-item\b/.test(tag)).map((tag) => {
+      const step = tag.match(/data-reveal-step="([^"]+)"/);
+      return { dataset: step ? { revealStep: step[1] } : {} };
+    });
+    return SlideshowEngine.prototype.getSlideRevealSteps.call({
+      currentSlideIndex: 0,
+      slideElements: [{ querySelectorAll: () => items }]
+    });
+  };
+  const automatic = getSteps([
+    { type: 'paragraph', text: 'First', reveal: true },
+    { type: 'paragraph', text: 'Second', reveal: true }
+  ]);
+  assert.equal(automatic.hasCustomSteps, false);
+  assert.deepEqual(automatic.stepNumbers, [1, 2]);
+
+  const grouped = getSteps([
+    { type: 'paragraph', text: 'First in DOM, last step', revealStep: 7 },
+    { type: 'paragraph', text: 'Automatic in explicit mode', reveal: true },
+    { type: 'paragraph', text: 'Numbered', revealStep: 3 },
+    { type: 'table', headers: [{ text: 'Together', revealStep: 3 }], rows: [[{ text: 0, reveal: true }]] }
+  ]);
+  assert.equal(grouped.hasCustomSteps, true);
+  assert.deepEqual(grouped.stepNumbers, [1, 3, 7]);
+  assert.equal(grouped.totalSteps, 3);
+  assert.equal(grouped.itemsByStep.get(1).length, 2);
+  assert.equal(grouped.itemsByStep.get(3).length, 2);
+  assert.equal(grouped.itemsByStep.get(7).length, 1);
+});
+
+test('special containers and progressive graph internals keep their existing reveal markup', () => {
+  for (const block of [
+    { type: 'solution', blocks: [{ type: 'paragraph', text: 'Answer' }] },
+    { type: 'sector-construction', categories: [{ label: 'A', value: 1 }] },
+    { type: 'board-workspace', content: [{ type: 'paragraph', text: 'Workspace' }] }
+  ]) {
+    assert.equal(renderBlock({ ...block, revealStep: 9 }), renderBlock(block));
+  }
+  const progressive = { type: 'measured-bar', progressive: true, check: 'Check',
+    categories: [{ label: 'A', value: 1 }] };
+  const original = renderBlock(progressive);
+  const numbered = renderBlock({ ...progressive, revealStep: 5 });
+  assert.equal(numbered.replace(/class="measured-bar-container reveal-item" data-reveal-step="5"/,
+    'class="measured-bar-container "'), original);
+});
