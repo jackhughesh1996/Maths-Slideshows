@@ -967,3 +967,105 @@ test('existing 8F composite graphs and 8I solution configurations remain valid',
     assert.equal(result.valid, true, result.errors.join('; '));
   }
 });
+
+// Static Do Now spinners deliberately differ from simulation spinner sectors.
+function validateDoNowSpinner(spinner) {
+  return validateLesson(makeLesson({ type: 'do-now', title: 'Spinner stimulus',
+    questions: [{ prompt: 'Which colour?', answer: 'Blue' }], spinners: [spinner]
+  }), { silent: true });
+}
+
+test('Do Now rejects malformed spinner/sector containers with precise nested paths', () => {
+  for (const spinner of [null, [], 'spinner', 1]) {
+    const result = validateDoNowSpinner(spinner);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.includes('TEST-BLOCKS') && e.includes('Slide 1') &&
+      e.includes('slide.spinners[0]') && e.includes('must be an object')));
+  }
+  for (const sectors of ['invalid', {}, null, false, 0]) {
+    const result = validateDoNowSpinner({ sectors });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.includes('slide.spinners[0].sectors') && e.includes('array')));
+  }
+  for (const sector of [null, [], 'sector', 0, true]) {
+    const result = validateDoNowSpinner({ sectors: [sector] });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.includes('slide.spinners[0].sectors[0]') && e.includes('object')));
+  }
+});
+
+test('Do Now rejects non-finite/incorrect angles, invalid text and unknown nested fields', () => {
+  for (const field of ['needleAngle', 'startDeg', 'endDeg']) {
+    for (const value of [NaN, Infinity, -Infinity, '90', null, false, {}, []]) {
+      const spinner = field === 'needleAngle' ? { [field]: value } : { sectors: [{ [field]: value }] };
+      const result = validateDoNowSpinner(spinner);
+      const path = field === 'needleAngle' ? 'slide.spinners[0].needleAngle' : `slide.spinners[0].sectors[0].${field}`;
+      assert.equal(result.valid, false, `${field}: ${String(value)}`);
+      assert.ok(result.errors.some((e) => e.includes(path) && e.includes('finite number')));
+    }
+  }
+  for (const field of ['id', 'name', 'sectorsDescription', 'label', 'color', 'textColor']) {
+    for (const value of [0, null, {}, []]) {
+      const isSector = ['label', 'color', 'textColor'].includes(field);
+      const spinner = isSector ? { sectors: [{ [field]: value }] } : { [field]: value };
+      const result = validateDoNowSpinner(spinner);
+      const path = `slide.spinners[0]${isSector ? '.sectors[0]' : ''}.${field}`;
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes(path) && e.includes('string')));
+    }
+  }
+  for (const [spinner, path] of [
+    [{ sector: [] }, 'slide.spinners[0].sector'],
+    [{ sectors: [{ angle: 360 }] }, 'slide.spinners[0].sectors[0].angle']
+  ]) {
+    const result = validateDoNowSpinner(spinner);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.includes(path) && e.includes('Unknown property')));
+  }
+});
+
+test('stem-and-leaf enforces documented string leaves and scalar stems', () => {
+  for (const isBackToBack of [false, true]) {
+    const base = { type: 'stem-and-leaf', isBackToBack, leftHeader: 'Left', rightHeader: 'Right',
+      rows: [{ stem: 0, leaves: '0', ...(isBackToBack ? { leftLeaves: '' } : {}) }] };
+    assert.equal(validateGraphBlock(base).valid, true);
+    for (const prop of isBackToBack ? ['leaves', 'leftLeaves'] : ['leaves']) {
+      for (const value of [0, 42, NaN, Infinity, null, [], {}, true]) {
+        const result = validateGraphBlock({ ...base, rows: [{ ...base.rows[0], [prop]: value }] });
+        assert.equal(result.valid, false, `${prop}: ${String(value)}`);
+        assert.ok(result.errors.some((e) => e.includes(`slide.content[0].rows[0].${prop}`) && e.includes('string')));
+      }
+    }
+    for (const value of [NaN, Infinity, true, {}, []]) {
+      const result = validateGraphBlock({ ...base, rows: [{ ...base.rows[0], stem: value }] });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes('slide.content[0].rows[0].stem') && e.includes('finite number')));
+    }
+    assert.equal(validateGraphBlock({ ...base, rows: [[]] }).valid, false);
+  }
+});
+
+test('list items reject non-finite numbers and non-scalar values', () => {
+  for (const type of ['bullet-list', 'ordered-list']) {
+    for (const item of [NaN, Infinity, -Infinity, null, {}, [], true]) {
+      const result = validateGraphBlock({ type, items: [item] });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes('slide.content[0]') && e.includes('Item [0]') &&
+        e.includes('string or finite number')));
+    }
+  }
+});
+
+test('padded composite block types retain restrictions on outer reveals', () => {
+  for (const block of [
+    { type: ' sector-construction ', categories: [{ label: 'A', value: 1 }] },
+    { type: ' board-workspace ', content: [{ type: 'paragraph', text: 'Child' }] },
+    { type: ' divided-bar ', categories: [{ label: 'A', value: 1 }], progressive: true }
+  ]) {
+    for (const settings of [{ reveal: true }, { revealStep: 2 }]) {
+      const result = validateGraphBlock({ ...block, ...settings });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes('unsupported') || e.includes('internal reveal steps')));
+    }
+  }
+});

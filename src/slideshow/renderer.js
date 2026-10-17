@@ -7,6 +7,7 @@
 
 import { renderMath, renderMathInText, escapeHtml } from './math.js';
 import { normalizeSlideType } from './slideTypes.js';
+import { normalizeBlockType } from './blockTypes.js';
 import { renderSimulationBlock } from './simulationMarkup.js';
 import {
   renderStemAndLeafBlock,
@@ -38,9 +39,10 @@ export function renderBlock(block) {
 
   // These containers have their own reveal semantics (or no outer element).
   // Keep their existing handling separate from ordinary block reveals.
-  const supportsNumberedReveal = !['sector-construction', 'board-workspace'].includes(block.type);
+  const canonicalType = normalizeBlockType(block);
+  const supportsNumberedReveal = !['sector-construction', 'board-workspace'].includes(canonicalType);
   const hasStep = supportsNumberedReveal && block.revealStep !== undefined;
-  const revealClass = block.reveal || hasStep || (block.type === 'solution' && block.reveal === undefined)
+  const revealClass = block.reveal || hasStep || (canonicalType === 'solution' && block.reveal === undefined)
     ? 'reveal-item' : '';
   const html = renderBlockHtml(block, revealClass);
   // Decorate the existing root, including roots returned by graph/simulation
@@ -51,7 +53,7 @@ export function renderBlock(block) {
 }
 
 function renderBlockHtml(block, revealClass) {
-  switch (block.type) {
+  switch (normalizeBlockType(block)) {
     case 'heading': {
       const level = block.level || 3;
       const tag = `h${Math.min(6, Math.max(1, level))}`;
@@ -64,14 +66,14 @@ function renderBlockHtml(block, revealClass) {
 
     case 'bullet-list': {
       const items = (block.items || [])
-        .map((item) => `<li>${renderMathInText(item)}</li>`)
+        .map((item) => `<li>${renderMathInText(typeof item === 'number' ? String(item) : item)}</li>`)
         .join('');
       return `<ul class="block-list ${revealClass}" style="margin-left: 20px; line-height: 1.6; margin-top: 6px;">${items}</ul>`;
     }
 
     case 'ordered-list': {
       const items = (block.items || [])
-        .map((item) => `<li>${renderMathInText(item)}</li>`)
+        .map((item) => `<li>${renderMathInText(typeof item === 'number' ? String(item) : item)}</li>`)
         .join('');
       return `<ol class="block-list ${revealClass}" style="margin-left: 20px; line-height: 1.6; margin-top: 6px;">${items}</ol>`;
     }
@@ -158,8 +160,7 @@ function renderBlockHtml(block, revealClass) {
       return renderSectorConstructionBlock(block, revealClass, renderBlocks);
     }
 
-    case 'measured-bar':
-    case 'divided-bar': {
+    case 'measured-bar': {
       return renderMeasuredBarBlock(block, revealClass);
     }
 
@@ -257,7 +258,11 @@ export function renderSlide(slide, index) {
       break;
     case 'we-do':
     case 'board-task':
-      bodyHtml = renderBoardTaskSlide(slide, renderBlocks, renderBlockHtml);
+      bodyHtml = renderBoardTaskSlide(
+        slide.separateSolutions && Array.isArray(slide.solution)
+          ? { ...slide, solution: slide.solution.map(normalizeSolutionTypes) } : slide,
+        renderBlocks, renderBlockHtml
+      );
       break;
     case 'comparison':
       bodyHtml = renderComparisonSlide(slide, renderBlocks);
@@ -285,6 +290,20 @@ export function renderSlide(slide, index) {
   `;
 
   return section;
+}
+
+// Separate solutions inspect types before dispatch and strip nested reveal metadata.
+// Canonicalize copies so padded solution names retain that ownership without
+// changing the original lesson or the markup module's dependency interface.
+function normalizeSolutionTypes(block) {
+  if (!block || typeof block !== 'object') return block;
+  const normalized = { ...block, type: normalizeBlockType(block) };
+  for (const field of ['blocks', 'content', 'notes']) {
+    if (Array.isArray(block[field])) {
+      normalized[field] = block[field].map(normalizeSolutionTypes);
+    }
+  }
+  return normalized;
 }
 
 function getPhaseDefaultLabel(type) {

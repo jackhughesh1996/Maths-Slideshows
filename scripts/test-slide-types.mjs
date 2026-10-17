@@ -69,6 +69,7 @@ let rendererSource = await readFile(new URL('../src/slideshow/renderer.js', impo
 rendererSource = rendererSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
   .replace("from './slideTypes.js'", `from ${JSON.stringify(slideTypesUrl)}`)
+  .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
   .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`)
   .replace("from './graphMarkup.js'", `from ${JSON.stringify(graphMod)}`)
   .replace("from './slideMarkup.js'", `from ${JSON.stringify(slideMarkupMod)}`);
@@ -1653,4 +1654,126 @@ test('summary preserves rich takeaways and the return-to-library control', () =>
   assert.ok(html.includes('<button class="btn btn-primary btn-summary-return" type="button">'));
   assert.ok(html.includes('Return to Lesson Library'));
   assert.equal(getRenderedRevealSteps(html).totalSteps, 0);
+});
+
+function assertValidSlide(slide) {
+  const result = validateLesson({ id: 'CONTRACT', title: 'Contract regression', slides: [slide] }, { silent: true });
+  assert.equal(result.valid, true, result.errors.join('\n'));
+  return renderSlide(slide, 0).innerHTML;
+}
+
+test('validated Do Now spinners render defaults, empty arrays, full circles and wraparound', () => {
+  const slide = { type: 'do-now', title: 'Valid spinner stimuli',
+    questions: [{ prompt: 'Find $P(A)$', answer: '$1$' }], spinners: [
+      {}, { sectors: [] }, { sectors: [{}] },
+      { id: 'circle', name: '<Whole>', sectorsDescription: 'A & B', needleAngle: 0,
+        sectors: [{ startDeg: 0, endDeg: 360, label: 'Whole', color: '#ff0000', textColor: '#000000' }] },
+      { needleAngle: -45, sectors: [{ startDeg: 270, endDeg: 30, label: 'Wrapped' }] },
+      { name: '', sectorsDescription: '', sectors: [{ startDeg: -90, endDeg: -90, label: '', color: '', textColor: '' }] }
+    ] };
+  const original = structuredClone(slide);
+  const html = assertValidSlide(slide);
+  assert.equal((html.match(/class="do-now-spinner-card"/g) || []).length, 6);
+  assert.equal((html.match(/class="btn btn-sm btn-spin-donow"/g) || []).length, 6);
+  assert.ok(html.includes('rotate(225deg)'));
+  assert.ok(html.includes('rotate(0deg)'));
+  assert.ok(html.includes('rotate(-45deg)'));
+  assert.ok(html.includes('&lt;Whole&gt;') && html.includes('A &amp; B'));
+  assert.ok(html.includes('Whole') && html.includes('Wrapped') && html.includes('katex'));
+  assert.ok(html.includes('fill="#ff0000"') && html.includes('fill="#000000"'));
+  assert.doesNotMatch(html, /NaN|Infinity|katex-error/);
+  assert.deepEqual(slide, original);
+});
+
+test('validated padded block types and divided-bar aliases retain canonical dispatch and reveals', () => {
+  const blocks = [...ordinaryRevealBlocks,
+    { type: 'solution', text: '**Answer** $x=0$' },
+    { type: 'board-workspace', content: [{ type: ' solution ', text: 'Nested', revealStep: 2 }] },
+    { type: 'sector-construction', categories: [{ label: 'A', value: 1 }],
+      notes: [{ type: ' paragraph ', text: 'Nested note', revealStep: 2 }] }
+  ];
+  for (const block of blocks) {
+    const composite = ['board-workspace', 'sector-construction'].includes(block.type);
+    const canonical = { ...block, ...(composite ? {} : { revealStep: 3 }) };
+    const padded = { ...canonical, type: ` ${block.type} ` };
+    const original = structuredClone(padded);
+    const canonicalHtml = assertValidSlide({ type: 'notes', title: 'Canonical', content: [canonical] });
+    const paddedHtml = assertValidSlide({ type: 'notes', title: 'Canonical', content: [padded] });
+    // Simulation JSON preserves the original configuration, including its type.
+    const canonicalConfig = (html) => html.replace(/(<script[^>]*class="sim-config"[^>]*>)([\s\S]*?)(<\/script>)/g,
+      (_, open, json, close) => open + JSON.stringify({ ...JSON.parse(json), type: 'simulation' }) + close);
+    assert.equal(canonicalConfig(paddedHtml), canonicalConfig(canonicalHtml), block.type);
+    assert.deepEqual(padded, original);
+    if (!composite) assert.ok(renderBlock(padded).includes('data-reveal-step="3"'), block.type);
+  }
+  const bar = { categories: [{ label: 'A', value: 1 }], revealStep: 2 };
+  assert.equal(renderBlock({ ...bar, type: ' divided-bar ' }), renderBlock({ ...bar, type: 'measured-bar' }));
+  for (const progressive of [false, true]) {
+    const config = { categories: [{ label: 'A', value: 1 }], progressive };
+    assert.equal(assertValidSlide({ type: 'notes', title: 'Alias', content: [{ ...config, type: ' divided-bar ' }] }),
+      assertValidSlide({ type: 'notes', title: 'Alias', content: [{ ...config, type: 'measured-bar' }] }));
+  }
+  assert.equal(getRenderedRevealSteps(renderBlock({ type: ' solution ', text: 'Default answer' })).totalSteps, 1);
+});
+
+test('padded separate solutions preserve atomic reveal ownership and do not mutate nested data', () => {
+  const solution = [
+    { type: 'solution', title: 'First', revealStep: 2, blocks: [
+      { type: 'board-workspace', content: [{ type: 'solution', text: 'Inner answer', revealStep: 7 }] }
+    ] },
+    { type: 'board-workspace', content: [{ type: 'solution', text: 'Second answer' }] }
+  ];
+  const pad = (block) => ({ ...block, type: ` ${block.type} `,
+    ...(block.blocks ? { blocks: block.blocks.map(pad) } : {}),
+    ...(block.content ? { content: block.content.map(pad) } : {}) });
+  const slide = { type: 'board-task', title: 'Atomic answers', content: [{ type: 'paragraph', text: 'Question' }],
+    separateSolutions: true, solution };
+  const padded = { ...slide, solution: solution.map(pad) };
+  const original = structuredClone(padded);
+  const html = assertValidSlide(padded);
+  assert.equal(html, assertValidSlide(slide));
+  const steps = getRenderedRevealSteps(html);
+  assert.equal(steps.totalSteps, 1); // Both entries use explicit step 2 (second defaults to index + 1).
+  assert.equal(steps.itemsByStep.get(2).length, 2);
+  assert.doesNotMatch(html, /data-reveal-step="7"/);
+  assert.ok(html.includes('Inner answer') && html.includes('Second answer'));
+  assert.deepEqual(padded, original);
+});
+
+test('validated numeric list items render zero and preserve string math/escaping', () => {
+  for (const type of ['bullet-list', 'ordered-list']) {
+    const html = assertValidSlide({ type: 'notes', title: 'Numbers', content: [
+      { type, items: [0, -2, 1.5, '**Rich** $x=0$', '<literal>'], revealStep: 2 }
+    ] });
+    assert.ok(html.includes('<li>0</li><li>-2</li><li>1.5</li>'));
+    assert.ok(html.includes('<strong>Rich</strong>') && html.includes('katex'));
+    assert.ok(html.includes('&lt;literal&gt;') && html.includes('data-reveal-step="2"'));
+  }
+  for (const isBackToBack of [false, true]) {
+    const html = assertValidSlide({ type: 'notes', title: 'Leaves', content: [
+      { type: 'stem-and-leaf', isBackToBack, leftHeader: 'Left', rightHeader: 'Right',
+        rows: [{ stem: 0, leaves: '0', ...(isBackToBack ? { leftLeaves: '0 <2>' } : {}) }] }
+    ] });
+    assert.ok(html.includes('>0</td>'));
+    assert.ok(html.includes('class="leaves">0</td>'));
+    if (isBackToBack) assert.ok(html.includes('class="leaves-left">0 &lt;2&gt;</td>'));
+  }
+});
+
+test('every manifest lesson validates and every registered slide renders', async (t) => {
+  const { lessonManifest } = await import('../src/lessons/manifest.js');
+  let rendered = 0;
+  for (const { id, path } of lessonManifest) {
+    const { default: lesson } = await import(new URL(`../src/lessons/${path}`, import.meta.url));
+    const result = validateLesson(lesson, { silent: true });
+    assert.equal(result.valid, true, `${id}: ${result.errors.join('\n')}`);
+    lesson.slides.forEach((slide, index) => {
+      const html = renderSlide(slide, index).innerHTML;
+      assert.ok(html.includes('class="slide-body"'), `${id} slide ${index + 1}`);
+      assert.doesNotMatch(html, /katex-error|class="math-error"/, `${id} slide ${index + 1}`);
+      rendered++;
+    });
+  }
+  assert.ok(rendered > 0);
+  t.diagnostic(`Validated and rendered ${rendered} slides from ${lessonManifest.length} lessons.`);
 });
