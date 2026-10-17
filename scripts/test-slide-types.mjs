@@ -48,12 +48,20 @@ let simSource = await readFile(simUrl, 'utf8');
 simSource = simSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
 const simMod = asModule(simSource);
 
+let markupSource = await readFile(new URL('../src/slideshow/simulationMarkup.js', import.meta.url), 'utf8');
+markupSource = markupSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
+  .replace("from './experimentalSimulations.js'", `from ${JSON.stringify(simMod)}`);
+const markupMod = asModule(markupSource);
+const { renderSimulationBlock } = await import(markupMod);
+const experimentalMarkup = await import(simMod);
+
 let rendererSource = await readFile(new URL('../src/slideshow/renderer.js', import.meta.url), 'utf8');
 rendererSource = rendererSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
   .replace("from './slideTypes.js'", `from ${JSON.stringify(slideTypesUrl)}`)
-  .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
-  .replace("from './experimentalSimulations.js'", `from ${JSON.stringify(simMod)}`);
+  .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`);
 
 const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));
 
@@ -1184,4 +1192,103 @@ test('separate solution descendants reveal atomically without losing nested badg
   }
   assert.ok(html.includes('class="katex"'));
   assert.ok(html.includes('<td><span>0</span></td>'));
+});
+
+function simulationConfig(html) {
+  const json = html.match(/<script type="application\/json" class="sim-config">([\s\S]*?)<\/script>/);
+  assert.ok(json, 'Simulation runtime configuration remains embedded');
+  return JSON.parse(json[1]);
+}
+
+function simulationBody(html) {
+  return html.replace(/<script type="application\/json" class="sim-config">[\s\S]*?<\/script>/, '');
+}
+
+test('extracted spinner markup preserves tabs, geometry, rich text and escaped configuration', () => {
+  const block = {
+    type: 'simulation', simType: 'spinner', title: '**Spinner** $x=1$', subtitle: 'A < B',
+    spinners: [
+      { name: '</script> & One', badge: '<Fair>', expected: '$\\frac{1}{2}$',
+        sectors: [{ label: 'Full', angle: 360 }] },
+      { sectors: [{ label: '<Quarter>', angle: 90 }, { label: 'Rest', angle: 270, color: '#16a34a' }] }
+    ]
+  };
+  const original = structuredClone(block);
+  const html = renderSimulationBlock(block);
+  assert.deepEqual(simulationConfig(html), block);
+  assert.equal((html.match(/class="btn btn-sm sim-tab-btn/g) || []).length, 2);
+  assert.equal((html.match(/class="sim-spinner-view/g) || []).length, 2);
+  assert.ok(html.includes('data-spinner-index="1"'));
+  assert.ok(html.includes('&lt;/script&gt; &amp; One'));
+  assert.ok(html.includes('&lt;Fair&gt;'));
+  assert.ok(html.includes('&lt;Quarter&gt;'));
+  assert.ok(html.includes('<strong>Spinner</strong>'));
+  assert.ok(html.includes('A &lt; B'));
+  assert.ok(html.includes('class="katex"'));
+  assert.ok(html.includes('<circle cx="90" cy="90" r="76" fill="#2563eb"'));
+  assert.ok(html.includes('class="sim-needle"'));
+  assert.ok(html.includes('class="sim-total-spins">Total spins: 0'));
+  assert.doesNotMatch(html, /katex-error|math-error/);
+  const alias = { ...block, simType: ' spinners ' };
+  const aliasHtml = renderSimulationBlock(alias);
+  assert.deepEqual(simulationConfig(aliasHtml), alias);
+  assert.equal(simulationBody(aliasHtml), simulationBody(html));
+  assert.deepEqual(block, original);
+});
+
+test('extracted draw markup preserves previews, zero counts, aliases and controls', () => {
+  for (const [simType, alias, previewClass, defaultTitle] of [
+    ['counter-bag', 'bag-draw', 'sim-token-chip', 'Bag Draw Simulation'],
+    ['pen-draw', 'box-draw', 'sim-pen-preview-icon', 'Pen Box Simulation']
+  ]) {
+    const block = { type: 'simulation', simType, expected: '**Chance:** $\\frac{1}{2}$', items: [
+      { label: '<Blue>', count: 2, color: '#2563eb' }, { label: 'Zero', count: 0, color: '#16a34a' }
+    ] };
+    const original = structuredClone(block);
+    const html = renderSimulationBlock(block, 'reveal-item');
+    assert.deepEqual(simulationConfig(html), block);
+    assert.match(html.trimStart().match(/^<[^>]+>/)[0], /\breveal-item\b/);
+    assert.ok(html.includes(`data-sim-type="${simType}"`));
+    assert.equal((html.match(new RegExp(`class="${previewClass}"`, 'g')) || []).length, 2);
+    assert.ok(html.includes('title="&lt;Blue&gt;"'));
+    assert.ok(!html.includes('title="Zero"'));
+    assert.ok(html.includes(defaultTitle));
+    assert.ok(html.includes('class="sim-total-draws">Total draws: 0'));
+    assert.ok(html.includes('btn-sim-draw-10'));
+    assert.ok(html.includes('btn-sim-reset'));
+    assert.ok(html.includes('<strong>Chance:</strong>'));
+    assert.ok(html.includes('class="katex"'));
+    const aliasBlock = { ...block, simType: alias };
+    const aliasHtml = renderSimulationBlock(aliasBlock, 'reveal-item');
+    assert.deepEqual(simulationConfig(aliasHtml), aliasBlock);
+    assert.equal(simulationBody(aliasHtml), simulationBody(html));
+    assert.deepEqual(block, original);
+  }
+});
+
+for (const [simType, renderer] of [
+  ['coin-class', 'renderCoinClassSimulation'],
+  ['coin-summary', 'renderCoinDiscussionSummary'],
+  ['coin-cumulative', 'renderCumulativeCoinSimulation'],
+  ['basketball', 'renderBasketballSimulation']
+]) {
+  test(`simulation markup delegates ${simType} to its existing experimental renderer`, () => {
+    const block = { type: 'simulation', simType, title: '**Experiment** $x=1$',
+      defaultClassSize: 12, trialsPerStudent: 10 };
+    for (const revealClass of ['', 'reveal-item']) {
+      const html = renderSimulationBlock(block, revealClass);
+      assert.equal(html, experimentalMarkup[renderer](block, revealClass));
+      assert.deepEqual(simulationConfig(html), block);
+      assert.ok(html.includes(`data-sim-type="${simType}"`));
+    }
+  });
+}
+
+test('simulation markup retains default spinner dispatch and empty output for unknown types', () => {
+  const block = { type: 'simulation', spinners: [] };
+  const html = renderSimulationBlock(block);
+  assert.ok(html.includes('data-sim-type="spinner"'));
+  assert.ok(html.includes('Interactive Spinner Simulation'));
+  assert.deepEqual(simulationConfig(html), block);
+  assert.equal(renderSimulationBlock({ type: 'simulation', simType: 'unknown' }), '');
 });
