@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate code and browser smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+
+      - name: Install dependencies from lockfile
+        run: bun ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Audit mathematical notation
+        run: npm run audit:math
+
+      - name: Build production site
+        run: npm run build
+
+      - name: Install Playwright Chromium and Linux dependencies
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Run production browser smoke tests
+        id: browser
+        run: npm run test:browser -- --trace retain-on-failure --reporter=list,html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() && steps.browser.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 5
+        with:
+          name: playwright-failure-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
