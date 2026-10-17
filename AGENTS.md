@@ -54,10 +54,12 @@ The following files and directories are generated artifacts. Do not edit them di
   Runs catalogue generation, page generation, Vite build, and student HTML launcher generation.
 - **Student launchers**: `npm run generate-launchers`
   Runs `scripts/generate-launchers.js` independently.
-- **Math formula audit**: `node scripts/audit-math.js`
-  KaTeX audit script (currently audits 8E and 8F).
-- **Regression tests**: `node --test scripts/test-8i-regressions.mjs`
-  Node test runner executing regression checks for simulation state, animations, and math rendering.
+- **Math formula audit**: `npm run audit:math`
+  Audits mathematical notation in every lesson registered in `manifest.js`; exits nonzero on errors. Lesson validation also checks notation and graph numerical consistency.
+- **Regression tests**: `npm test`
+  Runs all `scripts/test-*.mjs` suites, including schema, rendering, reveal, graph and math regressions.
+- **Browser smoke tests**: `npm run test:browser`
+  Builds and serves the production site locally, then tests the library and every registered lesson in Chromium. Install with `npx playwright install --with-deps chromium`, or use `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chromium` for an existing executable.
 
 ## 5. Non-Negotiable Operational Rules
 
