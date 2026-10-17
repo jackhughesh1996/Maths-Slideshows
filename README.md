@@ -50,6 +50,25 @@ npm run lint
 ```
 Runs TypeScript type validation (`tsc --noEmit`) to verify lesson schemas and application code without emitting output.
 
+### Browser Smoke Tests
+
+```bash
+bun ci
+npx playwright install --with-deps chromium
+npm run test:browser
+```
+
+The Playwright suite builds the production site, starts a local Vite preview on
+port 4173, and checks the library and every lesson registered in the manifest.
+It exercises slide navigation and reveals, and fails on JavaScript errors,
+failed essential local assets, external runtime requests, or visible KaTeX errors.
+No GitHub Pages deployment or production URL is required. Port 4173 must be free;
+the suite starts and stops its own server and does not reuse another process.
+
+If Chromium is already installed, use
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chromium npm run test:browser`
+to avoid downloading another browser. Browser tests run separately from `npm test`.
+
 ### Production Build
 ```bash
 npm run build
