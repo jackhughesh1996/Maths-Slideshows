@@ -39,9 +39,10 @@ export function renderBlock(block) {
 
   // These containers have their own reveal semantics (or no outer element).
   // Keep their existing handling separate from ordinary block reveals.
-  const supportsNumberedReveal = !['solution', 'sector-construction', 'board-workspace'].includes(block.type);
+  const supportsNumberedReveal = !['sector-construction', 'board-workspace'].includes(block.type);
   const hasStep = supportsNumberedReveal && block.revealStep !== undefined;
-  const revealClass = block.reveal || hasStep ? 'reveal-item' : '';
+  const revealClass = block.reveal || hasStep || (block.type === 'solution' && block.reveal === undefined)
+    ? 'reveal-item' : '';
   const html = renderBlockHtml(block, revealClass);
   // Decorate the existing root, including roots returned by graph/simulation
   // helpers. Never introduce another reveal wrapper around their markup.
@@ -171,12 +172,10 @@ function renderBlockHtml(block, revealClass) {
     case 'solution': {
       // Solutions are always progressive reveal items by default
       return `
-        <div class="solution-container reveal-item">
+        <div class="solution-container ${revealClass}">
           <span class="solution-badge">✔ ${escapeHtml(block.title || 'Model Solution')}</span>
           <div class="solution-content">
-            ${block.text ? `<p style="margin-bottom: 6px;">${renderMathInText(block.text)}</p>` : ''}
-            ${block.latex ? renderMath(block.latex, { display: true }) : ''}
-            ${block.blocks ? renderBlocks(block.blocks) : ''}
+            ${renderSolutionContent(block)}
           </div>
         </div>
       `;
@@ -189,6 +188,29 @@ function renderBlockHtml(block, revealClass) {
     default:
       return `<div class="${revealClass}">${renderMathInText(block.text || '')}</div>`;
   }
+}
+
+// A separate answer is one atomic reveal. Its descendants must not introduce
+// another automatic/default solution reveal or compete with the owner's step.
+// Copy the input so lesson data and ordinary workspace child reveals are intact.
+function withoutRevealSettings(value) {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(withoutRevealSettings);
+  const copy = Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key !== 'reveal' && key !== 'revealStep')
+    .map(([key, child]) => [key, withoutRevealSettings(child)]));
+  if (copy.type === 'solution') copy.reveal = false;
+  return copy;
+}
+
+// Shared answer body: separateSolutions already supplies the badge and reveal
+// container, so it must not render another solution shell around this content.
+function renderSolutionContent(block) {
+  return `
+    ${block.text ? `<p style="margin-bottom: 6px;">${renderMathInText(block.text)}</p>` : ''}
+    ${block.latex ? renderMath(block.latex, { display: true }) : ''}
+    ${block.blocks ? renderBlocks(block.blocks) : ''}
+  `;
 }
 
 /**
@@ -1507,11 +1529,17 @@ function renderBoardTaskSlide(slide) {
         .map((solBlock, idx) => {
           const stepNum = solBlock.revealStep !== undefined ? solBlock.revealStep : idx + 1;
           const badgeTitle = solBlock.badgeTitle || solBlock.title || 'Model Solution';
+          // The wrapper owns this entry's reveal metadata. Render its body
+          // directly so a numbered/default solution root is not revealed twice.
+          const contentBlock = withoutRevealSettings(solBlock);
+          const bodyHtml = contentBlock.type === 'solution'
+            ? renderSolutionContent(contentBlock)
+            : renderBlockHtml(contentBlock, '');
           return `
             <div class="reveal-item solution-container" data-reveal-step="${stepNum}" style="margin-top: 10px;">
               <span class="solution-badge">✔ ${escapeHtml(badgeTitle)}</span>
               <div class="solution-content" style="margin-top: 8px;">
-                ${renderBlock(solBlock)}
+                ${bodyHtml}
               </div>
             </div>
           `;
