@@ -61,12 +61,17 @@ let graphSource = await readFile(new URL('../src/slideshow/graphMarkup.js', impo
 graphSource = graphSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
 const graphMod = asModule(graphSource);
 
+let slideMarkupSource = await readFile(new URL('../src/slideshow/slideMarkup.js', import.meta.url), 'utf8');
+slideMarkupSource = slideMarkupSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
+const slideMarkupMod = asModule(slideMarkupSource);
+
 let rendererSource = await readFile(new URL('../src/slideshow/renderer.js', import.meta.url), 'utf8');
 rendererSource = rendererSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
   .replace("from './slideTypes.js'", `from ${JSON.stringify(slideTypesUrl)}`)
   .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`)
-  .replace("from './graphMarkup.js'", `from ${JSON.stringify(graphMod)}`);
+  .replace("from './graphMarkup.js'", `from ${JSON.stringify(graphMod)}`)
+  .replace("from './slideMarkup.js'", `from ${JSON.stringify(slideMarkupMod)}`);
 
 const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));
 
@@ -1438,3 +1443,214 @@ for (const type of ['measured-bar', 'divided-bar']) {
     assert.equal(renderBlock({ type, categories: [] }), '');
   });
 }
+
+test('slide body dispatch retains all types, aliases, headers, identity and notes fallback', async () => {
+  assert.deepEqual(Object.keys(await import(asModule(rendererSource))).sort(), ['renderBlock', 'renderBlocks', 'renderSlide']);
+  const paragraph = { type: 'paragraph', text: 'Body marker' };
+  const cases = [
+    ['title', {}, 'Lesson Overview'],
+    ['learning', { learningIntention: 'Learn', successCriteria: ['Explain'] }, 'WALT'],
+    ['do-now', { questions: [{ prompt: 'Question', answer: 'Answer' }] }, 'Warm-up Questions'],
+    ['worked-example', { steps: [{ text: 'Working' }] }, 'Step-by-Step Working'],
+    ['we-do', { prompt: 'Question' }, 'whiteboard-instruction'],
+    ['board-task', { prompt: 'Question' }, 'whiteboard-instruction'],
+    ['comparison', { columns: [{ blocks: [paragraph] }] }, 'Body marker'],
+    ['practice', { tasks: [{ title: 'Task' }] }, 'card col-third'],
+    ['exit-ticket', { questions: [{ prompt: 'Question' }] }, 'Question 1'],
+    ['summary', { takeaways: ['Remember'] }, 'btn-summary-return'],
+    ['notes', { content: [paragraph] }, 'Body marker']
+  ];
+  assert.deepEqual(cases.map(([type]) => type).sort(), [...CANONICAL_SLIDE_TYPES].sort());
+  for (const [type, fields, marker] of cases) {
+    const slide = { type, title: '**Heading** $x=1$', subtitle: 'A < B', phase: 'Custom <phase>', timerMinutes: 7, ...fields };
+    const original = structuredClone(slide);
+    const element = renderSlide(slide, 4);
+    assert.equal(element.id, 'slide-5');
+    assert.equal(element.className, 'slide ');
+    assert.deepEqual(element.dataset, { slideIndex: '4', timerMinutes: '7' });
+    assert.ok(element.innerHTML.includes(marker), type);
+    assert.ok(element.innerHTML.includes('<strong>Heading</strong>'), type);
+    assert.ok(element.innerHTML.includes('class="katex"'), type);
+    assert.ok(element.innerHTML.includes('A &lt; B'), type);
+    assert.equal(element.innerHTML.includes('slide-header'), type !== 'title');
+    if (type !== 'title') assert.ok(element.innerHTML.includes('Custom &lt;phase&gt;'), type);
+    for (const [alias, canonical] of Object.entries(SLIDE_TYPE_ALIASES)) {
+      if (type === canonical) assert.equal(renderSlide({ ...slide, type: ` ${alias} ` }, 4).innerHTML, element.innerHTML);
+    }
+    assert.deepEqual(slide, original);
+  }
+  const fallback = { title: 'Fallback', content: [paragraph] };
+  for (const type of [undefined, 'unknown', 'notes']) {
+    const element = renderSlide({ ...fallback, type }, 0);
+    assert.equal(element.className, 'slide active');
+    assert.deepEqual(element.dataset, { slideIndex: '0' });
+    assert.equal(element.innerHTML, renderSlide({ ...fallback, type: 'notes' }, 0).innerHTML);
+  }
+});
+
+test('notes and comparison containers preserve nested block callbacks and grouped reveals', () => {
+  const content = [{ type: 'paragraph', text: 'Top instruction', reveal: true }];
+  const columns = [{ title: 'Column', blocks: [
+    { type: 'solution', title: 'Nested badge', revealStep: 3, blocks: [
+      { type: 'note-box', text: '**Nested working** $x=1$', reveal: true }
+    ] }
+  ] }];
+  for (const slide of [
+    { type: 'notes', title: 'Notes', content, columns: [] },
+    { type: 'notes', title: 'Notes', columns },
+    { type: 'notes', title: 'Notes', content, columns },
+    { type: 'comparison', title: 'Compare', columns: [{ blocks: content }, ...columns] }
+  ]) {
+    const original = structuredClone(slide);
+    const html = renderSlide(slide, 0).innerHTML;
+    assert.deepEqual(slide, original);
+    if (slide.content) assert.ok(html.includes(renderBlocks(content)));
+    if (slide.columns?.length) {
+      assert.ok(html.includes(renderBlocks(columns[0].blocks)));
+      assert.ok(html.includes('<strong>Nested working</strong>'));
+      assert.ok(html.includes('class="katex"'));
+      const steps = getRenderedRevealSteps(html);
+      assert.deepEqual(steps.stepNumbers, [1, 3]);
+      assert.equal(steps.itemsByStep.get(3).length, 1);
+      assert.equal(steps.itemsByStep.get(1).length, slide.type === 'comparison' || slide.content ? 2 : 1);
+    }
+    if (slide.content && slide.columns?.length) assert.ok(html.indexOf('Top instruction') < html.indexOf('Nested badge'));
+  }
+});
+
+test('worked examples retain sequential step wrappers, raw data and nested solution content', () => {
+  const slide = { type: 'worked-example', title: 'Example', prompt: 'Find $x$', data: '<raw> & values',
+    leftBlocks: [{ type: 'paragraph', text: 'Problem context' }], steps: [
+      { label: '**First**', text: 'Set $x=0$' },
+      { label: 'Second', latex: 'x=1' },
+      { blocks: [{ type: 'solution', reveal: false, title: 'Worked answer', blocks: [{ type: 'formula', latex: 'x=2' }] }] }
+    ] };
+  const original = structuredClone(slide);
+  const html = renderSlide(slide, 0).innerHTML;
+  assert.ok(html.includes('&lt;raw&gt; &amp; values'));
+  assert.ok(html.includes('Problem context'));
+  assert.ok(html.includes('Step 1: <strong>First</strong>'));
+  assert.ok(html.includes('Step 2: Second'));
+  assert.ok(html.includes('Step 3:'));
+  assert.ok(html.includes('Worked answer'));
+  assert.ok(html.includes('class="katex-display"'));
+  const steps = getRenderedRevealSteps(html);
+  assert.equal(steps.hasCustomSteps, false);
+  assert.deepEqual(steps.stepNumbers, [1, 2, 3]);
+  assert.ok([...steps.itemsByStep.values()].every((items) => items.length === 1));
+  assert.equal(renderSlide({ ...slide, type: 'i-do' }, 0).innerHTML, html);
+  assert.deepEqual(slide, original);
+});
+
+test('Do Now preserves spinner SVG controls, answer reveals and all sidebar layouts', () => {
+  const slide = { type: 'do-now', title: 'Warm up', questions: [
+    { prompt: 'Find $x$', answer: '$x=1$' }, { prompt: 'Explain', answer: '**Because**' }
+  ] };
+  const plain = renderSlide(slide, 0).innerHTML;
+  assert.ok(plain.includes('card col-60'));
+  assert.ok(plain.includes('card col-40'));
+  assert.ok(plain.includes('Teacher Reminder'));
+  assert.equal(getRenderedRevealSteps(plain).totalSteps, 2);
+  const simulation = renderSlide({ ...slide, sidebarNotes: [{ type: 'simulation', simType: 'coin-class' }] }, 0).innerHTML;
+  assert.ok(simulation.includes('Consider each question before and after running the class experiment'));
+  assert.ok(simulation.includes('data-sim-type="coin-class"'));
+  assert.equal((simulation.match(/class="card col-half"/g) || []).length, 2);
+  const spinners = [
+    { name: '<Red & Blue>', needleAngle: 45, sectorsDescription: 'Half & half', sectors: [
+      { label: '<Red>', startDeg: -90, endDeg: 90 },
+      { label: 'Blue', startDeg: 90, endDeg: 270, color: '#2563eb' }
+    ] },
+    { sectors: [{ label: 'Default arc' }] }
+  ];
+  const spinnerSlide = { ...slide, spinners, stimulusTitle: '**Starter**', stimulusPrompt: 'Compare $x=1$',
+    sidebarNotes: [{ type: 'paragraph', text: 'Sidebar note' }] };
+  const original = structuredClone(spinnerSlide);
+  const html = renderSlide(spinnerSlide, 0).innerHTML;
+  assert.equal((html.match(/class="do-now-spinner-svg"/g) || []).length, 2);
+  assert.equal((html.match(/btn-spin-donow" data-spinner-idx=/g) || []).length, 2);
+  assert.ok(html.includes('viewBox="0 0 160 160"'));
+  assert.ok(html.includes('M 80 80 L 80.00 10.00 A 70 70 0 0 1 80.00 150.00 Z'));
+  assert.ok(html.includes('transform: rotate(45deg)'));
+  assert.ok(html.includes('transform: rotate(225deg)'));
+  assert.ok(html.includes('&lt;Red &amp; Blue&gt;'));
+  assert.ok(html.includes('&lt;Red&gt;'));
+  assert.ok(html.includes('Spinner 2'));
+  assert.ok(html.includes('Half &amp; half'));
+  assert.ok(html.includes('<strong>Starter</strong>'));
+  assert.ok(html.includes('Sidebar note'));
+  assert.ok(html.includes('class="katex"'));
+  assert.equal(getRenderedRevealSteps(html).totalSteps, 2);
+  assert.deepEqual(spinnerSlide, original);
+});
+
+test('board-task layouts and shared solution bodies retain atomic separate-answer ownership', () => {
+  const base = { type: 'board-task', title: 'Board', prompt: 'Question',
+    workspaceContent: [{ type: 'paragraph', text: 'Problem' }], notes: [{ type: 'paragraph', text: 'Checkpoint' }] };
+  const single = renderSlide(base, 0).innerHTML;
+  assert.equal((single.match(/class="card col-full"/g) || []).length, 1);
+  assert.ok(!single.includes('class="card col-half"'));
+  assert.ok(single.includes('On whiteboards: calculate each missing value.'));
+  assert.ok(single.includes('Checkpoint'));
+  const double = renderSlide({ ...base, rightBlocks: [{ type: 'paragraph', text: 'Right context' }],
+    solution: [{ type: 'paragraph', text: 'Plain answer' }] }, 0).innerHTML;
+  assert.equal((double.match(/class="card col-half"/g) || []).length, 2);
+  assert.ok(double.includes('Right context'));
+  assert.equal(getRenderedRevealSteps(double).totalSteps, 1);
+  const answer = { type: 'solution', title: 'Root badge', text: 'Root working $x=1$', revealStep: 2,
+    blocks: [{ type: 'solution', title: 'Inner badge', text: 'Inner working', blocks: [{ type: 'formula', latex: 'x=1' }] }] };
+  const separate = { ...base, separateSolutions: true, workspaceContent: [{ type: 'table',
+    headers: ['Q', { text: 'A', revealStep: 2 }], rows: [['A', { text: 0, revealStep: 2 }]] }],
+  solution: [answer, { type: 'paragraph', text: 'Second answer', revealStep: 2 }] };
+  const original = structuredClone(separate);
+  const html = renderSlide(separate, 0).innerHTML;
+  assert.deepEqual(getRenderedRevealSteps(html).stepNumbers, [2]);
+  assert.equal(getRenderedRevealSteps(html).itemsByStep.get(2).length, 4);
+  assert.equal((html.match(/class="solution-badge"/g) || []).length, 3);
+  for (const text of ['Root badge', 'Root working', 'Inner badge', 'Inner working', 'Second answer']) assert.ok(html.includes(text));
+  assert.ok(html.includes('class="katex"'));
+  // The same shared helper still gives ordinary nested solution blocks their
+  // own default reveal, unlike the atomic separate-answer body above.
+  const ordinary = getRenderedRevealSteps(renderBlock(answer));
+  assert.deepEqual(ordinary.stepNumbers, [1, 2]);
+  assert.equal(ordinary.itemsByStep.get(1).length, 1);
+  assert.equal(ordinary.itemsByStep.get(2).length, 1);
+  assert.deepEqual(separate, original);
+});
+
+test('practice and exit-ticket retain content ordering, nested answers and legacy prompts', () => {
+  const practice = { type: 'practice', title: 'Practice', timerMinutes: 5,
+    content: [{ type: 'note-box', text: 'Instructions first' }], tasks: [
+      { title: 'Task heading', blocks: [{ type: 'paragraph', text: 'Task working' }],
+        solution: [{ type: 'formula', latex: 'x=1' }] },
+      { title: 'No answer', solution: [] }
+    ] };
+  const element = renderSlide(practice, 0);
+  const html = element.innerHTML;
+  assert.equal(element.dataset.timerMinutes, '5');
+  assert.ok(html.indexOf('Instructions first') < html.indexOf('Task heading'));
+  assert.ok(html.indexOf('Task heading') < html.indexOf('Task working'));
+  assert.equal(getRenderedRevealSteps(html).totalSteps, 1);
+  assert.ok(html.includes('class="katex-display"'));
+  const exit = renderSlide({ type: 'exit-ticket', title: 'Exit', questions: [
+    { prompt: 'Canonical question', question: 'Ignored question', blocks: [{ type: 'paragraph', text: 'Question detail' }],
+      solution: [{ type: 'formula', latex: 'x=1' }] },
+    { prompt: '', question: 'Legacy question', solution: [{ type: 'paragraph', text: 'Legacy answer' }] }
+  ] }, 0).innerHTML;
+  assert.ok(exit.includes('Canonical question'));
+  assert.ok(!exit.includes('Ignored question'));
+  assert.ok(exit.includes('Legacy question'));
+  assert.ok(exit.includes('Legacy answer'));
+  assert.ok(exit.indexOf('Question detail') < exit.indexOf('solution-container'));
+  assert.equal(getRenderedRevealSteps(exit).totalSteps, 2);
+});
+
+test('summary preserves rich takeaways and the return-to-library control', () => {
+  const html = renderSlide({ type: 'summary', title: 'Summary', takeaways: ['**Remember**', '$x=1$', '<literal>'] }, 0).innerHTML;
+  assert.ok(html.includes('Core Concepts Checklist'));
+  assert.ok(html.includes('<strong>Remember</strong>'));
+  assert.ok(html.includes('class="katex"'));
+  assert.ok(html.includes('&lt;literal&gt;'));
+  assert.ok(html.includes('<button class="btn btn-primary btn-summary-return" type="button">'));
+  assert.ok(html.includes('Return to Lesson Library'));
+  assert.equal(getRenderedRevealSteps(html).totalSteps, 0);
+});
