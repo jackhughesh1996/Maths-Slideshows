@@ -597,6 +597,11 @@ table.math-table th {
   white-space: nowrap;
 }
 
+/* Let the long prediction heading fit its column without shrinking the text. */
+#app[data-lesson-id="8I"] #slide-10 table.math-table th:nth-child(3) {
+  white-space: normal;
+}
+
 table.math-table td {
   padding: 8px 12px;
   border: 1px solid var(--border-medium);
