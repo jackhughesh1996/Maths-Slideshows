@@ -29,6 +29,7 @@ export default [
     files: ['src/**/*.{js,mjs,cjs}', 'scripts/**/*.{js,mjs,cjs}', 'tests/**/*.{js,mjs,cjs}', '*.{js,mjs,cjs}'],
     rules: {
       'no-undef': 'error',
+      'no-unused-vars': 'error',
       'no-debugger': 'error',
       'no-unreachable': 'error',
       'no-duplicate-case': 'error',

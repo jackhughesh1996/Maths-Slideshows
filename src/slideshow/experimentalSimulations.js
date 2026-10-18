@@ -748,8 +748,6 @@ export class CoinClassSimulation {
    ========================================================================== */
 
 export function renderCoinDiscussionSummary(block, revealClass = '') {
-  const title = block.title || 'Actual Pooled Results From Slide 3';
-
   return `
     <div class="sim-widget sim-coin-summary-widget ${revealClass}" data-sim-type="coin-summary">
       <script type="application/json" class="sim-config">${JSON.stringify(block).replace(/<\//g, '<\\/')}</script>
