@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { inspectVisibility, settleSlide, pendingOverflow } from './helpers/visibility.mjs';
+import { inspectVisibility, settleSlide } from './helpers/visibility.mjs';
 import { test as base, expect } from '@playwright/test';
 import { lessonManifest } from '../../src/lessons/manifest.js';
 
@@ -456,17 +456,7 @@ for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 76
       await writeFile(testInfo.outputPath('visibility.json'), JSON.stringify(states, null, 2));
       const problems = states.flatMap(({ findings, ...state }) => findings
         .filter((finding) => finding.kind !== 'intentional-history-scroll').map((finding) => ({ ...state, ...finding })));
-      const pending = problems.filter((problem) => pendingOverflow(id, problem.slide,
-        lesson.slides[problem.slide - 1].title, viewport.width, problem));
-      for (const slide of new Set(pending.map((problem) => problem.slide))) {
-        const entries = pending.filter((problem) => problem.slide === slide);
-        const reason = pendingOverflow(id, slide, lesson.slides[slide - 1].title, viewport.width, entries[0]).reason;
-        const message = `${id} slide ${slide}: remaining vertical scroll ${Math.max(...entries.map((entry) => entry.pixels))}px. ${reason}`;
-        testInfo.annotations.push({ type: 'known-overflow', description: message });
-        console.warn(message);
-      }
-      const unexpected = process.env.CLASSROOM_VISIBILITY_STRICT ? problems : problems.filter((problem) => !pending.includes(problem));
-      expect(unexpected, `${id} ${viewport.width}x${viewport.height}: see visibility.json and overflow screenshot`).toEqual([]);
+      expect(problems, `${id} ${viewport.width}x${viewport.height}: see visibility.json and overflow screenshot`).toEqual([]);
     });
   }
 }
@@ -498,24 +488,24 @@ test('visibility detector separates hidden reveals, clipping and live history sc
 });
 
 
-test('pending authoring allowances cannot hide new slides, horizontal clipping or larger regressions', () => {
-  const finding = { kind: 'scroll-required', axis: 'y', pixels: 100,
-    container: 'div.slide-body:nth-child(2) > div.card.col-third:nth-child(1)' };
-  const title = 'You Do: Independent Practice';
-  expect(pendingOverflow('8G', 10, title, 1280, finding)).toBeDefined();
-  for (const slide of [5, 6]) {
-    expect(pendingOverflow('8F', slide, 'I Do: Constructing a Sector Graph', 1280, {
-      ...finding, container: 'div.slide-body:nth-child(2) > div.card.col-half:nth-child(2)'
-    })).toBeUndefined();
+test('8G: single-task practice retains the counter simulation and answer reveals', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const expectedAnswers = ['Total counters = 10.', 'the drawing pin is asymmetrical', 'Add 6 red marbles'];
+  for (let task = 0; task < expectedAnswers.length; task++) {
+    await openLessonAt(page, '8G', 9 + task);
+    await expect(activeSlide(page).locator('.card.col-third')).toHaveCount(1);
+    const solution = activeSlide(page).locator('.solution-container');
+    await expect(solution).not.toHaveClass(/is-revealed/);
+    if (task === 0) {
+      await activeSlide(page).locator('.btn-sim-draw-10').click();
+      await expect(activeSlide(page).locator('.sim-total-draws')).toHaveText('Total draws: 10');
+    }
+    await finishReveals(page);
+    await expect(solution).toHaveClass(/is-revealed/);
+    await expect(solution).toContainText(expectedAnswers[task]);
+    await settleSlide(page);
+    expect(await inspectVisibility(page)).toEqual([]);
   }
-  for (const args of [
-    ['8J', 10, title, 1280, finding], ['8G', 11, title, 1280, finding],
-    ['8G', 10, 'New lesson content', 1280, finding], ['8G', 10, title, 1920, finding],
-    ['8G', 10, title, 1280, { ...finding, axis: 'x' }],
-    ['8G', 10, title, 1280, { ...finding, kind: 'hidden-clipping' }],
-    ['8G', 10, title, 1280, { ...finding, pixels: 327 }],
-    ['8G', 10, title, 1280, { ...finding, container: `${finding.container} > .table-container` }]
-  ]) expect(pendingOverflow(...args)).toBeUndefined();
 });
 
 test('short-projector simulation layouts keep controls, live results and explanations visible', async ({ page }) => {
@@ -525,7 +515,7 @@ test('short-projector simulation layouts keep controls, live results and explana
   await expect(activeSlide(page).locator('.cumul-stats-strip')).toContainText('1000');
   await settleSlide(page);
   expect(await inspectVisibility(page)).toEqual([]);
-  await openLessonAt(page, '8G', 11);
+  await openLessonAt(page, '8G', 13);
   await finishReveals(page);
   await settleSlide(page);
   expect(await inspectVisibility(page)).toEqual([]);
