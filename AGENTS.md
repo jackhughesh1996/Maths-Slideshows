@@ -51,7 +51,7 @@ The catalogue and lesson HTML entry pages are regenerated locally and are not Gi
 - **Development server**: `npm run dev`
   Runs `generate-lesson-catalog.js` and `generate-lesson-pages.js`, then starts Vite on port 3000 (`0.0.0.0:3000`).
 - **Type check & lint**: `npm run lint`
-  Generates the lesson catalogue, then runs TypeScript type checking without emitting files (`tsc --noEmit`).
+  Generates the lesson catalogue, then runs TypeScript type checking without emitting files (`tsc --noEmit`) and ESLint correctness checks on authored JavaScript.
 - **Production build**: `npm run build`
   Runs catalogue generation, page generation, Vite build, and student HTML launcher generation.
 - **Student launchers**: `npm run generate-launchers`
@@ -77,3 +77,11 @@ When executing tasks or reliability improvements:
    Distinguish between issues introduced by the current change and pre-existing flaws or warnings in earlier code.
 5. **Run relevant checks and report what actually ran**:
    Always execute and report the specific commands tested (lint, schema validation, tests, build) along with exact output or status codes. Do not state or imply visual inspection unless actual visual checks were performed.
+
+## 6. AI Agent Workflow
+
+- Work on a dedicated branch, never directly on `main`, and make only requested changes.
+- Inspect `git status` and the actual changed-file list before committing. Do not edit or commit generated files.
+- Keep `package.json` and `bun.lock` consistent when changing dependencies; use Bun to update the lockfile and verify with `bun ci`.
+- Run relevant tests and report exactly what passed or failed. Never claim visual verification unless browser-based visual checks were actually performed.
+- Do not create pull requests or merge unless explicitly instructed.
