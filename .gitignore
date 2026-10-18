@@ -8,3 +8,5 @@ coverage/
 !.env.example
 test-results/
 playwright-report/
+lessons/*/index.html
+public/downloads/*.html
