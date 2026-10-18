@@ -36,9 +36,11 @@ export const lessonManifest = [
 
 The following files and directories are generated artifacts. Do not edit them directly:
 
+The catalogue and lesson HTML entry pages are regenerated locally and are not Git-tracked. Fresh checkouts do not contain them; use the commands below to generate them.
+
 | Generated Path | Generator Script | When Created / Updated |
 | :--- | :--- | :--- |
-| `src/generated/lesson-catalog.js` | `scripts/generate-lesson-catalog.js` | Dev server start (`npm run dev`) & build (`npm run build`) |
+| `src/generated/lesson-catalog.js` | `scripts/generate-lesson-catalog.js` | Dev server start, build, lint, and `npm run generate-launchers` |
 | `lessons/<id>/index.html` | `scripts/generate-lesson-pages.js` | Dev server start (`npm run dev`) & build (`npm run build`) |
 | `dist/` | `vite build` | Production build (`npm run build`) |
 | `public/downloads/*.html` | `scripts/generate-launchers.js` | Production build (`npm run build`) or `npm run generate-launchers` |
@@ -49,11 +51,11 @@ The following files and directories are generated artifacts. Do not edit them di
 - **Development server**: `npm run dev`
   Runs `generate-lesson-catalog.js` and `generate-lesson-pages.js`, then starts Vite on port 3000 (`0.0.0.0:3000`).
 - **Type check & lint**: `npm run lint`
-  Runs TypeScript type checking without emitting files (`tsc --noEmit`).
+  Generates the lesson catalogue, then runs TypeScript type checking without emitting files (`tsc --noEmit`).
 - **Production build**: `npm run build`
   Runs catalogue generation, page generation, Vite build, and student HTML launcher generation.
 - **Student launchers**: `npm run generate-launchers`
-  Runs `scripts/generate-launchers.js` independently.
+  Generates the lesson catalogue, then runs `scripts/generate-launchers.js` independently of the production build.
 - **Math formula audit**: `npm run audit:math`
   Audits mathematical notation in every lesson registered in `manifest.js`; exits nonzero on errors. Lesson validation also checks notation and graph numerical consistency.
 - **Regression tests**: `npm test`
