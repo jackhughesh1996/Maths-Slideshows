@@ -93,6 +93,7 @@ export function renderSectorGraphBlock(block, revealClass) {
   if (items.length === 0) return '';
 
   const total = block.total || items.reduce((acc, it) => acc + (it.amount || 0), 0);
+  const fractions = items.map((item) => item.fraction !== undefined ? item.fraction : (item.amount || 0) / total);
   const size = block.size || 250;
   const cx = size / 2;
   const cy = size / 2;
@@ -102,7 +103,7 @@ export function renderSectorGraphBlock(block, revealClass) {
   const paths = [];
 
   items.forEach((item, index) => {
-    const fraction = item.fraction !== undefined ? item.fraction : (item.amount || 0) / total;
+    const fraction = fractions[index];
     const angleDeg = fraction * 360;
     const color = item.color || PALETTE[index % PALETTE.length];
 
@@ -149,11 +150,13 @@ export function renderSectorGraphBlock(block, revealClass) {
   const legendItems = items
     .map((item, index) => {
       const color = item.color || PALETTE[index % PALETTE.length];
-      const angle = item.angle || Math.round(((item.amount || 0) / total) * 360);
+      // angle is a validated annotation; geometry and legend use the proportion.
+      const angle = Math.round(fractions[index] * 360);
+      const quantity = item.amount !== undefined ? `${item.amount} (${angle}°)` : `${angle}°`;
       return `
         <div class="legend-item">
           <span class="legend-swatch" style="background-color: ${color};"></span>
-          <span><strong>${escapeHtml(item.label)}</strong>: ${item.amount !== undefined ? item.amount : ''} (${angle}°)</span>
+          <span><strong>${escapeHtml(item.label)}</strong>: ${quantity}</span>
         </div>
       `;
     })
@@ -437,10 +440,10 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
   const isProgressive = Boolean(block.progressive);
 
   // Compute total count/denominator
-  const total = Number(block.total) || items.reduce((acc, it) => {
-    const val = it.value !== undefined ? it.value : (it.amount !== undefined ? it.amount : (it.length !== undefined ? it.length : 0));
-    return acc + Number(val);
-  }, 0) || totalLength;
+  const weights = items.map((item) => item.value !== undefined ? item.value
+    : (item.amount !== undefined ? item.amount : (item.length !== undefined ? item.length : 0)));
+  const total = Number(block.total) || weights.reduce((acc, value) => acc + Number(value), 0) || totalLength;
+  const fractions = items.map((item, index) => item.fraction !== undefined ? item.fraction : weights[index] / total);
 
   // SVG Geometry for clean projector and laptop scaling
   const svgWidth = 740;
@@ -502,8 +505,7 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
   const segments = [];
 
   items.forEach((item, index) => {
-    const val = item.value !== undefined ? item.value : (item.amount !== undefined ? item.amount : (item.length !== undefined ? item.length : 0));
-    const fraction = item.fraction !== undefined ? item.fraction : val / total;
+    const fraction = fractions[index];
     const segWidth = fraction * barWidth;
     const segCm = fraction * totalLength;
     const color = item.color || PALETTE[index % PALETTE.length];
@@ -568,13 +570,13 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
   const legendItems = items
     .map((item, index) => {
       const color = item.color || PALETTE[index % PALETTE.length];
-      const val = item.value !== undefined ? item.value : (item.amount !== undefined ? item.amount : (item.length !== undefined ? item.length : ''));
-      const fraction = (item.amount || item.value || 0) / total;
+      const hasWeight = item.value !== undefined || item.amount !== undefined || item.length !== undefined;
+      const fraction = fractions[index];
       const lengthFormatted = (fraction * totalLength).toFixed(1).replace(/\.0$/, '');
       return `
         <div class="measured-bar-legend-item">
           <span class="measured-bar-legend-swatch" style="background-color: ${color};"></span>
-          <span><strong>${escapeHtml(item.label)}</strong>: ${val !== '' ? `${val} students → ` : ''}<strong>${lengthFormatted} ${escapeHtml(unit)}</strong></span>
+          <span><strong>${escapeHtml(item.label)}</strong>: ${hasWeight ? `${weights[index]} → ` : ''}<strong>${lengthFormatted} ${escapeHtml(unit)}</strong></span>
         </div>
       `;
     })

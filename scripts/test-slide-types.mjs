@@ -1777,3 +1777,141 @@ test('every manifest lesson validates and every registered slide renders', async
   assert.ok(rendered > 0);
   t.diagnostic(`Validated and rendered ${rendered} slides from ${lessonManifest.length} lessons.`);
 });
+
+function graphLegendText(html) {
+  return [...html.matchAll(/<div class="(?:legend-item|measured-bar-legend-item)">([\s\S]*?)<\/div>/g)]
+    .map(([, item]) => item.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+}
+
+function validatedGraphHtml(block) {
+  const original = structuredClone(block);
+  const html = assertValidSlide({ type: 'notes', title: 'Legend contract', content: [block] });
+  assert.doesNotMatch(html, /NaN|Infinity|undefined|null/);
+  assert.deepEqual(block, original);
+  return html;
+}
+
+test('sector legends use geometry proportions for fractions, counts, mixed data, zeros and whole circles', () => {
+  for (const { items, total, expected } of [
+    { items: [{ label: 'A', fraction: 0.25 }, { label: 'B', fraction: 0.75 }],
+      expected: ['A: 90°', 'B: 270°'] },
+    { items: [{ label: 'A', amount: 1 }, { label: 'B', amount: 3 }], total: 4,
+      expected: ['A: 1 (90°)', 'B: 3 (270°)'] },
+    { items: [{ label: 'A', fraction: 0.25 }, { label: 'B', amount: 3 }], total: 4,
+      expected: ['A: 90°', 'B: 3 (270°)'] },
+    { items: [{ label: 'Zero', fraction: 0, angle: 0 }, { label: 'All', fraction: 1, angle: 360 }],
+      expected: ['Zero: 0°', 'All: 360°'] },
+    { items: [{ label: 'All', fraction: 1 }], expected: ['All: 360°'] },
+    { items: [{ label: 'Zero', amount: 0 }, { label: 'All', amount: 4 }], total: 4,
+      expected: ['Zero: 0 (0°)', 'All: 4 (360°)'] }
+  ]) {
+    const html = validatedGraphHtml({ type: 'sector-graph', items, total, revealStep: 4 });
+    assert.deepEqual(graphLegendText(html), expected);
+    assert.deepEqual(getRenderedRevealSteps(html).stepNumbers, [4]);
+    if (items.some((item) => item.fraction === 1)) {
+      assert.ok(html.includes('<circle cx="125" cy="125" r="95" fill='));
+    }
+  }
+  const svgPaths = (html) => [...html.matchAll(/<path d="([^"]+)"/g)].map(([, path]) => path);
+  assert.deepEqual(
+    svgPaths(validatedGraphHtml({ type: 'sector-graph', items: [{ label: 'A', fraction: 0.25 }, { label: 'B', fraction: 0.75 }] })),
+    svgPaths(validatedGraphHtml({ type: 'sector-graph', total: 4, items: [{ label: 'A', amount: 1 }, { label: 'B', amount: 3 }] }))
+  );
+});
+
+test('sector legends match geometry rounding rather than independently using counts or angle annotations', () => {
+  for (const annotations of [false, true]) {
+    const rounded = validatedGraphHtml({ type: 'sector-graph', total: 3, items: [
+      { label: 'A', amount: 1, fraction: 0.33, ...(annotations ? { angle: 119 } : {}) },
+      { label: 'B', amount: 2, fraction: 0.67, ...(annotations ? { angle: 241 } : {}) }
+    ] });
+    assert.deepEqual(graphLegendText(rounded), ['A: 1 (119°)', 'B: 2 (241°)']);
+    for (const angle of [119, 241]) assert.ok(rounded.includes(`\n          ${angle}°\n`));
+  }
+  // Validation accepts a whole-degree residual adjustment to the largest
+  // annotation. The unchanged geometry still uses the exact count fractions.
+  const adjusted = validatedGraphHtml({ type: 'sector-graph', items: [
+    { label: 'A', amount: 1, angle: 51 }, { label: 'B', amount: 1, angle: 51 },
+    { label: 'C', amount: 5, angle: 258 }
+  ] });
+  assert.deepEqual(graphLegendText(adjusted), ['A: 1 (51°)', 'B: 1 (51°)', 'C: 5 (257°)']);
+  assert.ok(adjusted.includes('\n          257°\n'));
+  assert.doesNotMatch(adjusted, /258°/);
+});
+
+for (const type of ['measured-bar', 'divided-bar']) {
+  test(`${type} legends scale every supported weight representation and explicit fractions`, () => {
+    for (const field of ['value', 'amount', 'length', 'fraction']) {
+      const isFraction = field === 'fraction';
+      const categories = [{ label: 'A', [field]: isFraction ? 0.25 : 2 },
+        { label: 'B', [field]: isFraction ? 0.75 : 3 }];
+      const block = { type, categories, totalLength: 20, ...(isFraction ? {} : { total: 5 }) };
+      const html = validatedGraphHtml(block);
+      const lengths = isFraction ? [5, 15] : [8, 12];
+      assert.deepEqual(graphLegendText(html), [
+        `A: ${isFraction ? '' : '2 → '}${lengths[0]} cm`,
+        `B: ${isFraction ? '' : '3 → '}${lengths[1]} cm`
+      ]);
+      assert.ok(html.includes(`<title>A: ${lengths[0]} cm (boundary at ${lengths[0]} cm)</title>`));
+      assert.ok(html.includes(`<title>B: ${lengths[1]} cm (boundary at 20 cm)</title>`));
+      assert.ok(html.includes(`width="${(lengths[0] / 20 * 664).toFixed(2)}" height="52"`));
+      assert.doesNotMatch(html, /students/);
+      assert.equal(html, validatedGraphHtml({ ...block, type: type === 'measured-bar' ? 'divided-bar' : 'measured-bar' }));
+      // The alias array and inferred denominator produce the same markup.
+      assert.equal(html, validatedGraphHtml({ type, items: categories, totalLength: 20 }));
+    }
+  });
+
+  test(`${type} legends preserve zero weights, rounded fraction precedence and progressive reveals`, () => {
+    for (const field of ['value', 'amount', 'length', 'fraction']) {
+      const html = validatedGraphHtml({ type, totalLength: 20, categories: [
+        { label: 'Zero', [field]: 0 }, { label: 'All', [field]: 1 }
+      ] });
+      assert.deepEqual(graphLegendText(html), field === 'fraction'
+        ? ['Zero: 0 cm', 'All: 20 cm'] : ['Zero: 0 → 0 cm', 'All: 1 → 20 cm']);
+    }
+    const block = { type, total: 3, totalLength: 20, categories: [
+      { label: 'A', value: 1, amount: 1, length: 1, fraction: 0.33 },
+      { label: 'B', value: 2, amount: 2, length: 2, fraction: 0.67 }
+    ], checkMath: '6.6+13.4=20' };
+    const html = validatedGraphHtml({ ...block, revealStep: 4 });
+    assert.deepEqual(graphLegendText(html), ['A: 1 → 6.6 cm', 'B: 2 → 13.4 cm']);
+    assert.ok(html.includes('<title>A: 6.6 cm (boundary at 6.6 cm)</title>'));
+    assert.doesNotMatch(graphLegendText(html).join(' '), /6\.7 cm|13\.3 cm/);
+    assert.deepEqual(getRenderedRevealSteps(html).stepNumbers, [4]);
+    const progressive = validatedGraphHtml({ ...block, progressive: true });
+    assert.deepEqual(graphLegendText(progressive), graphLegendText(html));
+    assert.deepEqual(getRenderedRevealSteps(progressive).stepNumbers, [1, 2, 3]);
+    assert.ok(progressive.includes('class="measured-bar-check reveal-item"'));
+  });
+
+  test(`${type} legends respect scale aliases, totalLength precedence, units and decimal formatting`, () => {
+    const html = validatedGraphHtml({ type, totalLengthCm: 12, unit: 'm', categories: [
+      { label: 'A', fraction: 0.25 }, { label: 'B', fraction: 0.75 }
+    ] });
+    assert.deepEqual(graphLegendText(html), ['A: 3 m', 'B: 9 m']);
+    assert.ok(html.includes('<title>B: 9 m (boundary at 12 m)</title>'));
+    // Both scale names are allowed together within the existing 0.05 tolerance.
+    const both = validatedGraphHtml({ type, totalLength: 20.05, totalLengthCm: 20, unit: 'mm',
+      categories: [{ label: 'All', fraction: 1 }] });
+    assert.deepEqual(graphLegendText(both), ['All: 20.1 mm']);
+    assert.ok(both.includes('<title>All: 20.1 mm (boundary at 20.1 mm)</title>'));
+  });
+}
+
+test('legend regression examples retain validation errors for contradictory fractions, angles and scales', () => {
+  for (const [block, message] of [
+    [{ type: 'sector-graph', items: [{ label: 'A', fraction: 0.25, angle: 100 },
+      { label: 'B', fraction: 0.75, angle: 260 }] }, /Sector angle must agree/],
+    [{ type: 'measured-bar', totalLength: 20, categories: [{ label: 'A', value: 2, fraction: 0.5 },
+      { label: 'B', value: 3, fraction: 0.5 }] }, /Fraction must agree/],
+    [{ type: 'divided-bar', totalLength: 20, totalLengthCm: 12,
+      categories: [{ label: 'All', fraction: 1 }] }, /Alternative total bar lengths disagree/]
+  ]) {
+    const result = validateLesson({ id: 'LEGEND', title: 'Invalid graph', slides: [
+      { type: 'notes', title: 'Graph', content: [block] }
+    ] }, { silent: true });
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((error) => message.test(error)), result.errors.join('\n'));
+  }
+});
