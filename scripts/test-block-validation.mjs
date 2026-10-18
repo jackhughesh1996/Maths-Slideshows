@@ -10,13 +10,10 @@ import { test } from 'node:test';
 import {
   CANONICAL_BLOCK_TYPES,
   BLOCK_TYPE_ALIASES,
-  SUPPORTED_BLOCK_TYPES,
   normalizeBlockType,
   isSupportedBlockType,
   CANONICAL_SIMULATION_TYPES,
   SIMULATION_TYPE_ALIASES,
-  SUPPORTED_SIMULATION_TYPES,
-  normalizeSimulationType,
   isSupportedSimulationType
 } from '../src/slideshow/blockTypes.js';
 

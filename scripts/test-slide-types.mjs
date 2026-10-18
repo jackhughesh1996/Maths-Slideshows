@@ -11,7 +11,6 @@ import { test } from 'node:test';
 import {
   CANONICAL_SLIDE_TYPES,
   SLIDE_TYPE_ALIASES,
-  SUPPORTED_SLIDE_TYPES,
   normalizeSlideType,
   isSupportedSlideType
 } from '../src/slideshow/slideTypes.js';

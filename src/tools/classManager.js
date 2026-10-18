@@ -90,7 +90,7 @@ export function getActiveClassId() {
     if (active && classes.some((c) => c.id === active)) {
       return active;
     }
-  } catch (err) {
+  } catch {
     // Ignore error
   }
   return classes[0]?.id || '';
@@ -103,7 +103,7 @@ export function getActiveClassId() {
 export function setActiveClassId(id) {
   try {
     localStorage.setItem(STORAGE_KEY_ACTIVE, id);
-  } catch (err) {
+  } catch {
     // Ignore error
   }
 }

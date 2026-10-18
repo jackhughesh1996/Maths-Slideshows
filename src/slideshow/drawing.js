@@ -123,7 +123,7 @@ export class BoardDrawing {
     this.isDrawing = true;
     try {
       this.canvas.setPointerCapture(e.pointerId);
-    } catch (_) {
+    } catch {
       // Ignore in environments where pointer capture is unsupported
     }
 
@@ -160,7 +160,7 @@ export class BoardDrawing {
     if (e.pointerId) {
       try {
         this.canvas.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      } catch {}
     }
   }
 

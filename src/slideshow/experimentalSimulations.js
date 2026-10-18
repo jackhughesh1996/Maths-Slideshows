@@ -7,7 +7,7 @@
  * 4. BasketballSimulation (Slide 12: Die-based free-throw simulation)
  */
 
-import { escapeHtml, renderMathInText, renderMath } from './math.js';
+import { renderMathInText } from './math.js';
 
 /* ==========================================================================
    SHARED COIN EXPERIMENT STORE (Cross-slide persistence: Slide 3 -> 4 -> 10)
@@ -539,7 +539,7 @@ export class CoinClassSimulation {
   }
 
   updateUI() {
-    const { classSize, students, trialsPerStudent } = coinExperimentStore;
+    const { classSize, students } = coinExperimentStore;
     const totalTosses = coinExperimentStore.getTotalClassTosses();
     const totalHeads = coinExperimentStore.getTotalClassHeads();
     const fraction = totalTosses > 0 ? totalHeads / totalTosses : 0;
@@ -1279,7 +1279,6 @@ export class BasketballSimulation {
     const total = this.scores + this.misses;
     const fraction = total > 0 ? this.scores / total : 0;
     const pct = (fraction * 100).toFixed(1);
-    const theoreticalPct = ((2 / 3) * 100).toFixed(1);
 
     // 1. Die Column
     if (this.dieCol) {
