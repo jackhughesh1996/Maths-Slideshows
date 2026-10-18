@@ -95,15 +95,11 @@ export async function inspectVisibility(page) {
 }
 
 // Temporary, individually bounded authoring issues. Fixing these fully requires
-// moving the completed sector diagram to another slide or splitting the three-task practice slide;
-// neither instructional change is approved in Task 15. These are NOT "visible".
+// splitting the three-task practice slide, which is not approved yet. These are NOT "visible".
 // All other slides, containers, axes and larger viewports must have zero findings.
 // Strict audit (reports these as failures too):
 // CLASSROOM_VISIBILITY_STRICT=1 npm run test:browser -- --grep "classroom visibility"
 const pendingAuthoring = [
-  { lesson: '8F', slide: 5, title: 'I Do: Constructing a Sector Graph', card: 'col-half', index: 2,
-    maximum: { 1366: 132, 1280: 164 },
-    reason: 'Four worked steps plus the diagram exceed the half-width card; a proposed separate diagram slide needs approval. All working is retained.' },
   { lesson: '8G', slide: 10, title: 'You Do: Independent Practice', card: 'col-third', index: 1,
     maximum: { 1366: 294, 1280: 326 },
     reason: 'Task 1 combines a live counter-bag simulation, four prompts and four explanations; needs an approved split.' },

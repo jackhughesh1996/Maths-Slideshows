@@ -500,16 +500,21 @@ test('visibility detector separates hidden reveals, clipping and live history sc
 
 test('pending authoring allowances cannot hide new slides, horizontal clipping or larger regressions', () => {
   const finding = { kind: 'scroll-required', axis: 'y', pixels: 100,
-    container: 'div.slide-body:nth-child(2) > div.card.col-half:nth-child(2)' };
-  const title = 'I Do: Constructing a Sector Graph';
-  expect(pendingOverflow('8F', 5, title, 1280, finding)).toBeDefined();
+    container: 'div.slide-body:nth-child(2) > div.card.col-third:nth-child(1)' };
+  const title = 'You Do: Independent Practice';
+  expect(pendingOverflow('8G', 10, title, 1280, finding)).toBeDefined();
+  for (const slide of [5, 6]) {
+    expect(pendingOverflow('8F', slide, 'I Do: Constructing a Sector Graph', 1280, {
+      ...finding, container: 'div.slide-body:nth-child(2) > div.card.col-half:nth-child(2)'
+    })).toBeUndefined();
+  }
   for (const args of [
-    ['8J', 5, title, 1280, finding], ['8F', 6, title, 1280, finding],
-    ['8F', 5, 'New lesson content', 1280, finding], ['8F', 5, title, 1920, finding],
-    ['8F', 5, title, 1280, { ...finding, axis: 'x' }],
-    ['8F', 5, title, 1280, { ...finding, kind: 'hidden-clipping' }],
-    ['8F', 5, title, 1280, { ...finding, pixels: 165 }],
-    ['8F', 5, title, 1280, { ...finding, container: `${finding.container} > .table-container` }]
+    ['8J', 10, title, 1280, finding], ['8G', 11, title, 1280, finding],
+    ['8G', 10, 'New lesson content', 1280, finding], ['8G', 10, title, 1920, finding],
+    ['8G', 10, title, 1280, { ...finding, axis: 'x' }],
+    ['8G', 10, title, 1280, { ...finding, kind: 'hidden-clipping' }],
+    ['8G', 10, title, 1280, { ...finding, pixels: 327 }],
+    ['8G', 10, title, 1280, { ...finding, container: `${finding.container} > .table-container` }]
   ]) expect(pendingOverflow(...args)).toBeUndefined();
 });
 
