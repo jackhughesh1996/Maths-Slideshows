@@ -2305,6 +2305,20 @@ table.math-table.compact-table td {
   table.stem-plot { font-size: 1.1rem; }
 }
 
+/* Reclaim a little spacing on the three crowded 720p classroom slides. */
+@media (min-width: 961px) and (max-height: 720px) {
+  #app[data-lesson-id="8E"] #slide-6 table.math-table th,
+  #app[data-lesson-id="8E"] #slide-6 table.math-table td,
+  #app[data-lesson-id="8H"] #slide-7 table.math-table th,
+  #app[data-lesson-id="8H"] #slide-7 table.math-table td {
+    padding-block: 1px;
+  }
+
+  #app[data-lesson-id="8H"] #slide-3 .card:last-child {
+    padding-block: 8px;
+  }
+}
+
 @media (max-width: 960px) {
   .slide-body {
     flex-direction: column;
