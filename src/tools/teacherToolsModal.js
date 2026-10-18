@@ -7,7 +7,6 @@
 import {
   getClasses,
   getActiveClass,
-  getActiveClassId,
   setActiveClassId,
   createClass,
   updateClass,
@@ -177,7 +176,7 @@ function renderModalContent() {
   } else if (currentTab === 'teams') {
     renderTeamsTab(bodyEl, activeClass);
   } else if (currentTab === 'classes') {
-    renderClassesTab(bodyEl, activeClass, classes);
+    renderClassesTab(bodyEl, activeClass);
   }
 }
 
@@ -411,7 +410,7 @@ function renderTeamsTab(container, activeClass) {
 /**
  * Render Class Lists Management Tab.
  */
-function renderClassesTab(container, activeClass, classes) {
+function renderClassesTab(container, activeClass) {
   const students = activeClass ? activeClass.students : [];
 
   container.innerHTML = `

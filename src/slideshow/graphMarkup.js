@@ -591,8 +591,6 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
   ` : '';
 
   let checkHtml = '';
-  const rawCheckMath = block.checkMath || (!block.check?.includes('$') && (block.check?.includes('\\text') || block.check?.includes('+')) ? block.check : null);
-  const rawCheckLabel = block.checkLabel || (block.check && !rawCheckMath ? block.check : null);
 
   if (block.checkMath || block.check || block.checkSum) {
     let mathRendered = '';
@@ -635,5 +633,3 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
     </div>
   `;
 }
-
-const renderDividedBarBlock = renderMeasuredBarBlock;

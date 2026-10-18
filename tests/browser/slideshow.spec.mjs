@@ -156,7 +156,8 @@ async function revealGroups(page) {
 
 async function finishReveals(page) {
   const next = page.locator('#btnNextSlide');
-  for (const _ of await revealGroups(page)) {
+  const groups = await revealGroups(page);
+  for (let step = 0; step < groups.length; step++) {
     if (!(await next.getAttribute('aria-label')).startsWith('Reveal step ')) break;
     await next.click();
   }
