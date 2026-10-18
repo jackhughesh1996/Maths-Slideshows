@@ -212,20 +212,20 @@ export default {
       subtitle: "Together we calculate sector angles for 24 students' travel to school",
       studentAction: "On whiteboards: calculate each sector angle.",
       prompt: "A survey of 24 students recorded their method of travel to school: Bus (12), Walk (6), Car (4), Bike (2). Determine the angle for each sector and construct the sector graph.",
-      notes: [
-        {
-          type: "note-box",
-          variant: "gold",
-          title: "Teacher Checkpoint Question",
-          text: "• Notice that 12 is half of 24: $\\frac{12}{24} = \\frac{1}{2} \\rightarrow \\frac{1}{2} \\times 360^\\circ = 180^\\circ$ (straight line across circle).\n• Notice that 6 is a quarter of 24: $\\frac{6}{24} = \\frac{1}{4} \\rightarrow \\frac{1}{4} \\times 360^\\circ = 90^\\circ$ (right angle)."
-        }
-      ],
       workspaceContent: [
         {
           type: "sector-construction",
+          notes: [
+            {
+              type: "note-box",
+              variant: "gold",
+              title: "Teacher Checkpoint Question",
+              text: "• Notice that 12 is half of 24: $\\frac{12}{24} = \\frac{1}{2} \\rightarrow \\frac{1}{2} \\times 360^\\circ = 180^\\circ$ (straight line across circle).\n• Notice that 6 is a quarter of 24: $\\frac{6}{24} = \\frac{1}{4} \\rightarrow \\frac{1}{4} \\times 360^\\circ = 90^\\circ$ (right angle)."
+            }
+          ],
           total: 24,
           unitLabel: "students",
-          size: 340,
+          size: 280,
           categories: [
             {
               label: "Bus",

@@ -2312,3 +2312,96 @@ table.math-table.compact-table td {
 }
 
 
+
+/* Short classroom projectors: reclaim component whitespace, keeping text sizes. */
+@media (min-width: 961px) and (max-height: 800px) {
+  table.math-table th, table.math-table td { padding: 4px 10px; }
+  table.math-table.compact-table th, table.math-table.compact-table td { padding: 1px 8px; }
+  .card > .note-box { padding: 6px 10px; margin-bottom: 6px; }
+  .solution-container { padding: 10px 12px; }
+
+  /* Worked-example steps and Do Now question boxes have inline spacing. */
+  .card > .reveal-item:has(> h4) {
+    padding: 4px 8px !important;
+    margin-bottom: 4px !important;
+  }
+  .card > .reveal-item > h4 { margin-bottom: 2px !important; }
+  .card > div:has(> p + .reveal-item) > p { margin-bottom: 4px !important; }
+
+  /* A block display equation already supplies a line break on each side.
+     Suppress only the redundant br boxes, never mathematical or prose content. */
+  .card > .reveal-item > div > br:has(+ .katex-display),
+  .card > .reveal-item > div > .katex-display + br,
+  .card > .reveal-item > div > br + br { display: none; }
+  .card > .reveal-item .katex-display { margin: 0.1em 0 !important; }
+  .card > div:has(> p + .reveal-item) { padding: 4px 8px !important; margin-bottom: 2px !important; }
+  .card > div:has(> p + .reveal-item) > p,
+  .card > div:has(> p + .reveal-item) > .reveal-item { line-height: 1.4 !important; }
+  .card:has(> div > p + .reveal-item) > .card-title + p { margin-bottom: 6px !important; }
+
+  /* The checkpoint uses the existing table-side notes slot. Put the legend
+     beside the construction diagram, leaving the final check below both. */
+  .sector-construction-right { flex-basis: 46%; min-width: 0; max-width: none; }
+  .sector-chart-card {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 4px 8px;
+    padding: 8px;
+  }
+  .sector-chart-header { grid-column: 1 / -1; margin-bottom: 0; }
+  .sector-construction-svg { max-width: 280px; }
+  .sector-construction-legend { grid-column: 2; flex-direction: column; }
+  .sector-construction-check { grid-column: 1 / -1; margin-top: 4px; padding: 4px 8px; }
+
+  /* A pen-box exit ticket needs more space than the short explanation next
+     to it. Keep the draw controls and outcomes side by side within its card. */
+  .slide-body:has(> .card > div > .sim-pen-widget) > .card:has(> div > .sim-pen-widget) { flex: 3; }
+  .card > div > .sim-pen-widget { padding: 8px 10px; gap: 6px; margin-top: 6px; }
+  .card:has(> div > .sim-pen-widget) > div > p { margin-bottom: 4px !important; }
+  .card > div > .sim-pen-widget .sim-pen-container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-bag-preview { grid-column: 1; grid-row: 1; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-controls-bar { grid-column: 1; grid-row: 2; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-draw-stage { grid-column: 1; grid-row: 3; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-tally-list { grid-column: 2; grid-row: 1 / span 2; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-total-draws { grid-column: 2; grid-row: 3; }
+  .card > div > .sim-pen-widget .sim-pen-container > .sim-insight-callout { grid-column: 1 / -1; }
+
+  .card:has(> div > .sim-pen-widget) { padding: 6px 12px; }
+  .card:has(> div > .sim-pen-widget) > .solution-container { margin-top: 4px !important; padding: 4px 12px; }
+  .card > div > .sim-pen-widget > .sim-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+  .card > div > .sim-pen-widget .sim-bag-preview { padding: 4px 8px; }
+  .card > div > .sim-pen-widget .sim-draw-stage { padding: 2px 6px; }
+  .card > div > .sim-pen-widget .sim-drawn-card { padding: 2px 6px; gap: 6px; }
+  .card > div > .sim-pen-widget .sim-drawn-info { display: grid; grid-template-columns: auto auto; gap: 0 8px; }
+  .card > div > .sim-pen-widget .sim-drawn-sub { grid-column: 1 / -1; }
+
+  /* Keep the cumulative plot and its explanation beside one another instead
+     of expanding a 500x175 SVG across the entire card and stacking all notes. */
+  .sim-cumulative-widget {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    gap: 6px;
+    padding: 8px 10px;
+    margin-top: 4px;
+  }
+  .sim-cumulative-widget > .sim-header,
+  .sim-cumulative-widget > .cumul-controls-bar { grid-column: 1 / -1; }
+  .sim-cumulative-widget > .cumul-graph-container {
+    grid-column: 1;
+    grid-row: 3 / span 2;
+    align-self: start;
+  }
+  .sim-cumulative-widget > .cumul-stats-strip { grid-column: 2; grid-row: 3; }
+  .sim-cumulative-widget > .cumul-insight-wrap { grid-column: 2; grid-row: 4; }
+  .card:has(> .sim-cumulative-widget) { padding: 6px 10px; }
+  .sim-cumulative-widget > .sim-header { padding-bottom: 4px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+  .card:has(> .sim-cumulative-widget) .board-task-teacher-notes { margin-top: 4px !important; }
+  .card:has(> .sim-cumulative-widget) .board-task-teacher-notes .note-box { padding: 6px 10px; margin-bottom: 0; }
+  .card:has(> .sim-cumulative-widget) > .whiteboard-instruction {
+    padding: 4px 10px;
+    margin-bottom: 4px;
+  }
+  .card:has(> .sim-cumulative-widget) > p { margin-bottom: 6px !important; }
+  .card:has(> .sim-cumulative-widget) .board-task-teacher-notes .note-box h4,
+  .card:has(> .sim-cumulative-widget) .board-task-teacher-notes .note-box-content { display: inline; }
+}

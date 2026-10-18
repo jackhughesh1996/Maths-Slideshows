@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises';
+import { inspectVisibility, settleSlide, pendingOverflow } from './helpers/visibility.mjs';
 import { test as base, expect } from '@playwright/test';
 import { lessonManifest } from '../../src/lessons/manifest.js';
 
@@ -423,4 +425,107 @@ test('fullscreen control enters fullscreen and keyboard shortcut leaves it', asy
   await page.keyboard.press('f');
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await expect(page.locator('#presSlideCounter')).toHaveText(`1 / ${lessons.find(({ id }) => id === '8E').lesson.slides.length}`);
+});
+
+// Exhaustive classroom audit: every registered slide, every real reveal state.
+// A generic card scrollbar is a projection failure, not an exemption. Only the
+// two live simulation-history ribbons documented in the helper are informational.
+for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 1280, height: 720 }]) {
+  for (const { id, lesson } of lessons) {
+    test(`${id}: classroom visibility ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await openPage(page, `/lessons/${encodeURIComponent(id)}/`);
+      const states = [];
+      let screenshotTaken = false;
+      for (let index = 0; index < lesson.slides.length; index++) {
+        const groups = await revealGroups(page);
+        for (let step = 0; step <= groups.length; step++) {
+          await expect(activeSlide(page)).toHaveAttribute('data-slide-index', String(index));
+          await settleSlide(page);
+          const findings = await inspectVisibility(page);
+          states.push({ lesson: id, slide: index + 1, resolution: viewport, revealStep: step, revealGroup: step ? groups[step - 1][0] : null, findings });
+          const problems = findings.filter((finding) => finding.kind !== 'intentional-history-scroll');
+          if (problems.length && !screenshotTaken) {
+            await page.screenshot({ path: testInfo.outputPath(`overflow-slide-${index + 1}-step-${step}.png`) });
+            screenshotTaken = true;
+          }
+          if (step < groups.length) await page.locator('#btnNextSlide').click();
+        }
+        if (index < lesson.slides.length - 1) await page.locator('#btnNextSlide').click();
+      }
+      await writeFile(testInfo.outputPath('visibility.json'), JSON.stringify(states, null, 2));
+      const problems = states.flatMap(({ findings, ...state }) => findings
+        .filter((finding) => finding.kind !== 'intentional-history-scroll').map((finding) => ({ ...state, ...finding })));
+      const pending = problems.filter((problem) => pendingOverflow(id, problem.slide,
+        lesson.slides[problem.slide - 1].title, viewport.width, problem));
+      for (const slide of new Set(pending.map((problem) => problem.slide))) {
+        const entries = pending.filter((problem) => problem.slide === slide);
+        const reason = pendingOverflow(id, slide, lesson.slides[slide - 1].title, viewport.width, entries[0]).reason;
+        const message = `${id} slide ${slide}: remaining vertical scroll ${Math.max(...entries.map((entry) => entry.pixels))}px. ${reason}`;
+        testInfo.annotations.push({ type: 'known-overflow', description: message });
+        console.warn(message);
+      }
+      const unexpected = process.env.CLASSROOM_VISIBILITY_STRICT ? problems : problems.filter((problem) => !pending.includes(problem));
+      expect(unexpected, `${id} ${viewport.width}x${viewport.height}: see visibility.json and overflow screenshot`).toEqual([]);
+    });
+  }
+}
+
+test('visibility detector separates hidden reveals, clipping and live history scrolling', async ({ page }) => {
+  const fixture = async (content) => page.setContent(`
+    <style>
+      * { box-sizing: border-box; } body { margin: 0; font: 16px/20px sans-serif; }
+      .pres-stage, .pres-slide-viewport { width: 400px; height: 200px; overflow: hidden; }
+      .card { width: 200px; height: 100px; overflow: auto; }
+      .reveal-item:not(.is-revealed) { visibility: hidden; }
+      p { margin: 0; } .future { height: 220px; display: flex; align-items: end; }
+    </style>
+    <main class="pres-stage"><div class="pres-slide-viewport"><section class="slide active">${content}</section></div></main>`);
+  await fixture('<div class="card"><p>Visible prompt</p><div class="future reveal-item"><p>Future answer</p></div></div>');
+  expect(await inspectVisibility(page)).toEqual([]); // Reserved space alone is not clipping visible content.
+  await fixture('<div class="card"><p>Visible prompt</p><div class="future reveal-item is-revealed"><p>Revealed answer</p></div></div>');
+  expect(await inspectVisibility(page)).toEqual([expect.objectContaining({ kind: 'scroll-required', axis: 'y', text: 'Revealed answer' })]);
+  await fixture('<div class="card" style="overflow:hidden"><div class="future"><p>Clipped answer</p></div></div>');
+  expect(await inspectVisibility(page)).toEqual([expect.objectContaining({ kind: 'hidden-clipping', axis: 'y' })]);
+  await fixture('<p style="position:relative;top:240px">Outside stage</p>');
+  expect(await inspectVisibility(page)).toEqual([expect.objectContaining({ kind: 'outside-presentation', axis: 'y' })]);
+  for (const className of ['table-container', 'coin-chips-scroll', 'coin-anim-history-strip']) {
+    await fixture(`<div class="${className}" style="width:100px;overflow:auto;white-space:nowrap"><span>Long sequence of recorded outcomes or essential table data</span></div>`);
+    expect(await inspectVisibility(page)).toEqual([expect.objectContaining({
+      kind: className === 'table-container' ? 'scroll-required' : 'intentional-history-scroll', axis: 'x'
+    })]);
+  }
+});
+
+
+test('pending authoring allowances cannot hide new slides, horizontal clipping or larger regressions', () => {
+  const finding = { kind: 'scroll-required', axis: 'y', pixels: 100,
+    container: 'div.slide-body:nth-child(2) > div.card.col-half:nth-child(2)' };
+  const title = 'I Do: Constructing a Sector Graph';
+  expect(pendingOverflow('8F', 5, title, 1280, finding)).toBeDefined();
+  for (const args of [
+    ['8J', 5, title, 1280, finding], ['8F', 6, title, 1280, finding],
+    ['8F', 5, 'New lesson content', 1280, finding], ['8F', 5, title, 1920, finding],
+    ['8F', 5, title, 1280, { ...finding, axis: 'x' }],
+    ['8F', 5, title, 1280, { ...finding, kind: 'hidden-clipping' }],
+    ['8F', 5, title, 1280, { ...finding, pixels: 165 }],
+    ['8F', 5, title, 1280, { ...finding, container: `${finding.container} > .table-container` }]
+  ]) expect(pendingOverflow(...args)).toBeUndefined();
+});
+
+test('short-projector simulation layouts keep controls, live results and explanations visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openLessonAt(page, '8I', 10);
+  await page.locator('.slide.active .btn-add-1000').click();
+  await expect(activeSlide(page).locator('.cumul-stats-strip')).toContainText('1000');
+  await settleSlide(page);
+  expect(await inspectVisibility(page)).toEqual([]);
+  await openLessonAt(page, '8G', 11);
+  await finishReveals(page);
+  await settleSlide(page);
+  expect(await inspectVisibility(page)).toEqual([]);
+  await activeSlide(page).locator('.btn-sim-draw-10').click();
+  await expect(activeSlide(page).locator('.sim-total-draws')).toHaveText('Total draws: 10');
+  await settleSlide(page);
+  expect(await inspectVisibility(page)).toEqual([]);
 });
