@@ -37,7 +37,7 @@ export const lessonCatalog = [
       "Angle Calculations",
       "Graph Comparisons"
     ],
-    "slideCount": 12
+    "slideCount": 13
   },
   {
     "id": "8G",
@@ -55,7 +55,7 @@ export const lessonCatalog = [
       "Sample Space Lists",
       "Chance Reasoning"
     ],
-    "slideCount": 13
+    "slideCount": 15
   },
   {
     "id": "8H",
