@@ -10,3 +10,4 @@ test-results/
 playwright-report/
 lessons/*/index.html
 public/downloads/*.html
+src/generated/lesson-catalog.js
