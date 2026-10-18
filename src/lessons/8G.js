@@ -392,10 +392,25 @@ export default {
     {
       type: "practice",
       phase: "independent",
-      estimatedMinutes: 10,
-      timerMinutes: 10,
-      title: "You Do: Independent Practice",
-      subtitle: "Work through these three problems in your workbook. Use full sentences and correct terms.",
+      estimatedMinutes: 4,
+      timerMinutes: 4,
+      title: "You Do: Task 1: Bag of Counters",
+      subtitle: "Work in your workbook. Use full sentences and correct terms.",
+      content: [
+        {
+          type: "simulation",
+          simType: "counter-bag",
+          title: "Bag Draw Simulation",
+          subtitle: "Sample from 6 Red, 3 Green, 1 Blue counter",
+          items: [
+            { label: "Red", count: 6, color: "#dc2626", term: "Likely" },
+            { label: "Green", count: 3, color: "#16a34a", term: "Unlikely" },
+            { label: "Blue", count: 1, color: "#2563eb", term: "Unlikely" },
+            { label: "Yellow", count: 0, color: "#eab308", term: "Impossible" }
+          ],
+          expected: "Red appears most often (Likely), Green/Blue appear occasionally (Unlikely), Yellow is never drawn (Impossible)."
+        }
+      ],
       tasks: [
         {
           title: "Task 1: Bag of Counters",
@@ -404,19 +419,6 @@ export default {
             {
               type: "paragraph",
               text: "a) A red counter\nb) A green counter\nc) A blue counter\nd) A yellow counter"
-            },
-            {
-              type: "simulation",
-              simType: "counter-bag",
-              title: "Bag Draw Simulation",
-              subtitle: "Sample from 6 Red, 3 Green, 1 Blue counter",
-              items: [
-                { label: "Red", count: 6, color: "#dc2626", term: "Likely" },
-                { label: "Green", count: 3, color: "#16a34a", term: "Unlikely" },
-                { label: "Blue", count: 1, color: "#2563eb", term: "Unlikely" },
-                { label: "Yellow", count: 0, color: "#eab308", term: "Impossible" }
-              ],
-              expected: "Red appears most often (Likely), Green/Blue appear occasionally (Unlikely), Yellow is never drawn (Impossible)."
             }
           ],
           solution: [
@@ -425,7 +427,21 @@ export default {
               text: "Total counters = 10.\na) **Red:** Much more than half $\\rightarrow$ **Likely**\nb) **Green:** Less than half $\\rightarrow$ **Unlikely**\nc) **Blue:** Small chance (1 in 10) $\\rightarrow$ **Unlikely**\nd) **Yellow:** 0 yellow counters $\\rightarrow$ **Impossible**"
             }
           ]
-        },
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------------
+    // SLIDE 11: You Do — Task 2: Equally Likely Test
+    // ------------------------------------------------------------------------
+    {
+      type: "practice",
+      phase: "independent",
+      estimatedMinutes: 3,
+      timerMinutes: 3,
+      title: "You Do: Task 2: Equally Likely Test",
+      subtitle: "Work in your workbook. Use full sentences and correct terms.",
+      tasks: [
         {
           title: "Task 2: Equally Likely Test",
           prompt: "State whether the outcomes are equally likely or not equally likely for each trial:",
@@ -441,7 +457,21 @@ export default {
               text: "a) **Equally likely** (3 even {2, 4, 6} vs 3 odd {1, 3, 5}).\nb) **Not equally likely** (the drawing pin is asymmetrical; weight distribution favours one orientation).\nc) **Equally likely** (each of the 4 options A, B, C, D has a $\\frac{1}{4}$ chance of being guessed)."
             }
           ]
-        },
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------------
+    // SLIDE 12: You Do — Task 3: Qualitative Reasoning & Even Chance
+    // ------------------------------------------------------------------------
+    {
+      type: "practice",
+      phase: "independent",
+      estimatedMinutes: 3,
+      timerMinutes: 3,
+      title: "You Do: Task 3: Qualitative Reasoning & Even Chance",
+      subtitle: "Work in your workbook. Use full sentences and correct terms.",
+      tasks: [
         {
           title: "Task 3: Qualitative Reasoning & Even Chance",
           prompt: "A box contains 8 green marbles and 2 red marbles. Answer these questions using qualitative probability terms:\na) Describe the likelihood of drawing a green marble.\nb) Describe the likelihood of drawing a red marble.\nc) Are drawing green and drawing red equally likely? Explain why.\nd) How many red marbles must be added to the box so that drawing a red marble becomes an **even chance**?",
@@ -456,7 +486,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 11: Deep Dive / Misconception — The Gambler's Fallacy
+    // SLIDE 13: Deep Dive / Misconception — The Gambler's Fallacy
     // ------------------------------------------------------------------------
     {
       type: "comparison",
@@ -503,7 +533,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 12: Exit Ticket — Formative Assessment
+    // SLIDE 14: Exit Ticket — Formative Assessment
     // ------------------------------------------------------------------------
     {
       type: "exit-ticket",
@@ -548,7 +578,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 13: Summary & Next Steps
+    // SLIDE 15: Summary & Next Steps
     // ------------------------------------------------------------------------
     {
       type: "summary",

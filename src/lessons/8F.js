@@ -146,8 +146,8 @@ export default {
     {
       type: "worked-example",
       phase: "explicit",
-      estimatedMinutes: 5,
-      title: "I Do: Constructing a Sector Graph",
+      estimatedMinutes: 3,
+      title: "I Do: Calculating the Sector Angles",
       subtitle: "A survey asked 20 Year 7 students their favourite weekend activity",
       prompt: "Construct a complete sector graph for this survey dataset:",
       leftBlocks: [
@@ -181,7 +181,31 @@ export default {
               text: "Check: $144^\\circ + 108^\\circ + 72^\\circ + 36^\\circ = 360^\\circ$ ✔"
             }
           ]
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------------
+    // SLIDE 6: I Do — Worked Example: Drawing the Sector Graph
+    // ------------------------------------------------------------------------
+    {
+      type: "worked-example",
+      phase: "explicit",
+      estimatedMinutes: 2,
+      title: "I Do: Drawing the Sector Graph",
+      subtitle: "Use the calculated angles for the same survey of 20 students",
+      prompt: "Draw the sector graph using these survey results and calculated angles:",
+      leftBlocks: [
+        {
+          type: "paragraph",
+          text: "• **Football:** 8 students → $144^\\circ$\n• **Basketball:** 6 students → $108^\\circ$\n• **Gaming:** 4 students → $72^\\circ$\n• **Other:** 2 students → $36^\\circ$"
         },
+        {
+          type: "paragraph",
+          text: "**Total:** 20 students; $144^\\circ + 108^\\circ + 72^\\circ + 36^\\circ = 360^\\circ$."
+        }
+      ],
+      steps: [
         {
           label: "Render the completed sector graph",
           text: "Using a protractor starting from a radius line at the top, measure and draw each sector:",
@@ -202,7 +226,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 6: We Do — Guided Practice: Calculating Sector Angles
+    // SLIDE 7: We Do — Guided Practice: Calculating Sector Angles
     // ------------------------------------------------------------------------
     {
       type: "board-task",
@@ -212,20 +236,20 @@ export default {
       subtitle: "Together we calculate sector angles for 24 students' travel to school",
       studentAction: "On whiteboards: calculate each sector angle.",
       prompt: "A survey of 24 students recorded their method of travel to school: Bus (12), Walk (6), Car (4), Bike (2). Determine the angle for each sector and construct the sector graph.",
-      notes: [
-        {
-          type: "note-box",
-          variant: "gold",
-          title: "Teacher Checkpoint Question",
-          text: "• Notice that 12 is half of 24: $\\frac{12}{24} = \\frac{1}{2} \\rightarrow \\frac{1}{2} \\times 360^\\circ = 180^\\circ$ (straight line across circle).\n• Notice that 6 is a quarter of 24: $\\frac{6}{24} = \\frac{1}{4} \\rightarrow \\frac{1}{4} \\times 360^\\circ = 90^\\circ$ (right angle)."
-        }
-      ],
       workspaceContent: [
         {
           type: "sector-construction",
+          notes: [
+            {
+              type: "note-box",
+              variant: "gold",
+              title: "Teacher Checkpoint Question",
+              text: "• Notice that 12 is half of 24: $\\frac{12}{24} = \\frac{1}{2} \\rightarrow \\frac{1}{2} \\times 360^\\circ = 180^\\circ$ (straight line across circle).\n• Notice that 6 is a quarter of 24: $\\frac{6}{24} = \\frac{1}{4} \\rightarrow \\frac{1}{4} \\times 360^\\circ = 90^\\circ$ (right angle)."
+            }
+          ],
           total: 24,
           unitLabel: "students",
-          size: 340,
+          size: 280,
           categories: [
             {
               label: "Bus",
@@ -266,7 +290,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 7: You Do — Independent Practice 1 (Commences at ~Minute 21!)
+    // SLIDE 8: You Do — Independent Practice 1 (Commences at ~Minute 21!)
     // ------------------------------------------------------------------------
     {
       type: "practice",
@@ -300,7 +324,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 8: We Do — Guided Divided Bar Graph Construction (20 cm Bar)
+    // SLIDE 9: We Do — Guided Divided Bar Graph Construction (20 cm Bar)
     // ------------------------------------------------------------------------
     {
       type: "board-task",
@@ -355,7 +379,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 9: Extension: Working Backwards & Comparing Graph Types
+    // SLIDE 10: Extension: Working Backwards & Comparing Graph Types
     // ------------------------------------------------------------------------
     {
       type: "worked-example",
@@ -395,7 +419,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 10: Extension Practice: Divided Bars & Reverse Calculations
+    // SLIDE 11: Extension Practice: Divided Bars & Reverse Calculations
     // ------------------------------------------------------------------------
     {
       type: "practice",
@@ -429,7 +453,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 11: Exit Ticket
+    // SLIDE 12: Exit Ticket
     // ------------------------------------------------------------------------
     {
       type: "exit-ticket",
@@ -460,7 +484,7 @@ export default {
     },
 
     // ------------------------------------------------------------------------
-    // SLIDE 12: Summary & Key Takeaways
+    // SLIDE 13: Summary & Key Takeaways
     // ------------------------------------------------------------------------
     {
       type: "summary",
