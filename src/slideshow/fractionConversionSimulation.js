@@ -210,7 +210,6 @@ export class FractionConversionSimulation {
         : renderFractionBars(total, d, mode === 'regroup' ? state.groupCount : state.whole);
     }
     const grouped = Math.floor(total / d);
-    const remaining = total % d;
     const groupNext = this.root.querySelector('.fraction-group-next');
     if (groupNext) groupNext.disabled = state.groupCount >= grouped;
     const groupAll = this.root.querySelector('.fraction-group-all');
