@@ -8,8 +8,6 @@
 
 import { renderMath, renderMathInText, escapeHtml } from './math.js';
 
-let mixedModelCounter = 0;
-
 /**
  * Render a mixed-numeral area model block into SVG and explanation HTML.
  *
@@ -18,18 +16,6 @@ let mixedModelCounter = 0;
  * @returns {string} HTML string
  */
 export function renderMixedNumeralAreaModelBlock(block, revealClass = '') {
-  mixedModelCounter++;
-  const uniqueId = `mam-${mixedModelCounter}`;
-
-  // Default values for 2 1/3 × 1 2/5
-  const wWhole = block.wWhole !== undefined ? block.wWhole : 2;
-  const wNum = block.wNum !== undefined ? block.wNum : 1;
-  const wDen = block.wDen !== undefined ? block.wDen : 3;
-
-  const hWhole = block.hWhole !== undefined ? block.hWhole : 1;
-  const hNum = block.hNum !== undefined ? block.hNum : 2;
-  const hDen = block.hDen !== undefined ? block.hDen : 5;
-
   // Geometry: exact mathematical area proportions
   // Horizontal ratio: wWhole : (wNum / wDen) = 2 : 1/3 = 6 : 1
   // Vertical ratio: hWhole : (hNum / hDen) = 1 : 2/5 = 5 : 2
