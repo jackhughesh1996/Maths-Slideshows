@@ -12,7 +12,7 @@ A static, client-side classroom slideshow web application for Year 7 Mathematics
   - Legacy query router: `/?lesson=<id>` redirects to `/lessons/<id>/` via `src/main.js`
 - **Separation of concerns**:
   - Slideshow engine (`src/slideshow/`): navigation, progressive reveals, whiteboard pen (`drawing.js`), timer (`timer.js`), math formatting (`math.js`), slide renderer (`renderer.js`), and schema validation (`validator.js`).
-  - Lesson definitions (`src/lessons/`): structured declarative JS modules (8E, 8F, 8G, 8H, 8I).
+  - Lesson definitions (`src/lessons/`): structured declarative JS modules (3C, 3E, 3G, 3H, 8B, 8E, 8F, 8G, 8H, 8I).
   - Teacher tools (`src/tools/`): random student picker and team generator with localStorage class management.
 
 ## 2. Lesson Registration
@@ -21,6 +21,11 @@ Lessons are registered strictly via `src/lessons/manifest.js`:
 
 ```javascript
 export const lessonManifest = [
+  { id: '3C', path: './3C.js' },
+  { id: '3E', path: './3E.js' },
+  { id: '3G', path: './3G.js' },
+  { id: '3H', path: './3H.js' },
+  { id: '8B', path: './8B.js' },
   { id: '8E', path: './8E.js' },
   { id: '8F', path: './8F.js' },
   { id: '8G', path: './8G.js' },
@@ -30,7 +35,6 @@ export const lessonManifest = [
 ```
 
 - Each lesson module in `src/lessons/<id>.js` exports a default configuration object conforming to `validateLesson()`.
-- **Note on `src/lessons/index.js`**: An obsolete legacy registry that only references 8E and 8F. Do not register new lessons here; all dynamic loading and generators consume `manifest.js`.
 
 ## 3. Generated Files
 

@@ -473,7 +473,7 @@ export default {
       solution: [
         {
           type: "paragraph",
-          text: "1. **Total outcomes:** $n(S) = 11$.\n2. **Vowels:** $\\{A, E, A, I\\} \\implies n(\\text{Vowel}) = 4$.\n   $$\\mathbf{\\text{Pr}(\\text{Vowel}) = \\frac{4}{11}} \\approx 0.364 \\; (36.4\\%)$$\n3. **Consonants (Complement):** Since every letter is either a vowel or a consonant:\n   $$\\mathbf{\\text{Pr}(\\text{Consonant})} = 1 - \\text{Pr}(\\text{Vowel}) = 1 - \\frac{4}{11} = \\mathbf{\\frac{7}{11}} \\approx 0.636 \\; (63.6\\%)$$\n   *(Direct check: M, T, H, M, T, C, S = 7 consonants. $\\frac{7}{11} \\; \\checkmark$)*"
+          text: "1. **Total outcomes:** $n(S) = 11$.\n2. **Vowels:** $\\{A, E, A, I\\} \\implies n(\\text{Vowel}) = 4$.\n   $$\\mathbf{\\text{Pr}(\\text{Vowel}) = \\frac{4}{11}} \\approx 0.364 \\; (36.4\\%)$$\n3. **Consonants (Complement):** Since every letter is either a vowel or a consonant:\n   $$\\begin{aligned} \\mathbf{\\text{Pr}(\\text{Consonant})} &= 1 - \\text{Pr}(\\text{Vowel}) \\\\ &= 1 - \\frac{4}{11} = \\mathbf{\\frac{7}{11}} \\approx 0.636 \\; (63.6\\%) \\end{aligned}$$\n   *(Direct check: M, T, H, M, T, C, S = 7 consonants. $\\frac{7}{11} \\; \\checkmark$)*"
         }
       ]
     },

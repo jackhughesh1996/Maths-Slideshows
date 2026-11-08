@@ -6,6 +6,26 @@
 
 export const lessonManifest = [
   {
+    id: '3C',
+    path: './3C.js'
+  },
+  {
+    id: '3E',
+    path: './3E.js'
+  },
+  {
+    id: '3G',
+    path: './3G.js'
+  },
+  {
+    id: '3H',
+    path: './3H.js'
+  },
+  {
+    id: '8B',
+    path: './8B.js'
+  },
+  {
     id: '8E',
     path: './8E.js'
   },

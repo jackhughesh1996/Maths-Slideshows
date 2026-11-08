@@ -22,15 +22,24 @@ export const CANONICAL_BLOCK_TYPES = Object.freeze([
   'measured-bar',
   'board-workspace',
   'solution',
-  'simulation'
+  'simulation',
+  'fraction-area-model',
+  'fraction-of-set',
+  'mixed-numeral-area-model'
 ]);
 
 /**
  * Mapping of block type aliases to canonical names.
  * 'divided-bar' is an alias for 'measured-bar'
+ * 'fraction-model' is an alias for 'fraction-area-model'
+ * 'fraction-set' is an alias for 'fraction-of-set'
+ * 'mixed-area-model' is an alias for 'mixed-numeral-area-model'
  */
 export const BLOCK_TYPE_ALIASES = Object.freeze({
-  'divided-bar': 'measured-bar'
+  'divided-bar': 'measured-bar',
+  'fraction-model': 'fraction-area-model',
+  'fraction-set': 'fraction-of-set',
+  'mixed-area-model': 'mixed-numeral-area-model'
 });
 
 /**
@@ -80,7 +89,10 @@ export const CANONICAL_SIMULATION_TYPES = Object.freeze([
   'coin-class',
   'coin-summary',
   'coin-cumulative',
-  'basketball'
+  'basketball',
+  'fraction-conversion',
+  'fraction-division',
+  'reciprocal-explorer'
 ]);
 
 /**
@@ -88,11 +100,15 @@ export const CANONICAL_SIMULATION_TYPES = Object.freeze([
  * 'spinners' -> 'spinner'
  * 'bag-draw' -> 'counter-bag'
  * 'box-draw' -> 'pen-draw'
+ * 'fraction-divide' -> 'fraction-division'
+ * 'reciprocal' -> 'reciprocal-explorer'
  */
 export const SIMULATION_TYPE_ALIASES = Object.freeze({
   'spinners': 'spinner',
   'bag-draw': 'counter-bag',
-  'box-draw': 'pen-draw'
+  'box-draw': 'pen-draw',
+  'fraction-divide': 'fraction-division',
+  'reciprocal': 'reciprocal-explorer'
 });
 
 /**

@@ -57,29 +57,29 @@ export function renderTitleSlide(slide) {
 
 export function renderLearningSlide(slide, renderBlocks) {
   const criteria = (slide.successCriteria || [])
-    .map((c) => `<li style="margin-bottom: 8px;">${renderMathInText(c)}</li>`)
+    .map((c) => `<li style="margin-bottom: 6px;">${renderMathInText(c)}</li>`)
     .join('');
 
   return `
     <div class="card col-half" style="display:flex; flex-direction:column; justify-content:center;">
-      <div class="note-box" style="padding: 16px; margin-bottom: 20px;">
-        <h4 style="font-size: 1.05rem; color: var(--primary);">🎯 WALT (We Are Learning To)</h4>
-        <p style="font-size: 1.05rem; color: var(--text-primary); margin-top: 6px; line-height: 1.5;">
+      <div class="note-box" style="padding: 10px 14px; margin-bottom: 12px;">
+        <h4 style="font-size: 1.15rem; color: var(--primary);">🎯 WALT (We Are Learning To)</h4>
+        <p style="font-size: 1.15rem; color: var(--text-primary); margin-top: 4px; line-height: 1.4;">
           ${renderMathInText(slide.learningIntention || '')}
         </p>
       </div>
-      <div class="note-box gold" style="padding: 16px; margin-bottom: 0;">
-        <h4 style="font-size: 1.05rem; color: var(--accent-gold);">⭐ WILF (What I'm Looking For)</h4>
-        <ul style="margin-left: 20px; font-size: 0.96rem; line-height: 1.6; color: var(--text-primary); margin-top: 6px;">
+      <div class="note-box gold" style="padding: 10px 14px; margin-bottom: 0;">
+        <h4 style="font-size: 1.15rem; color: var(--accent-gold);">⭐ WILF (What I'm Looking For)</h4>
+        <ul style="margin-left: 20px; font-size: 1.14rem; line-height: 1.4; color: var(--text-primary); margin-top: 4px;">
           ${criteria}
         </ul>
       </div>
     </div>
-    <div class="card col-half" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding: 24px;">
+    <div class="card col-half" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding: 18px;">
       ${slide.keyPrinciple ? `
-        <div style="font-size: 2.8rem; margin-bottom: 12px;">📐 ✏️</div>
-        <h3 style="font-size: 1.25rem; color: var(--text-primary); margin-bottom: 10px;">Core Mathematics Principle</h3>
-        <p style="font-size: 1.08rem; color: var(--primary); font-weight: 700; background: var(--primary-subtle); padding: 16px; border-radius: 8px; border: 1.5px dashed var(--primary-border); line-height: 1.5;">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">📐 ✏️</div>
+        <h3 style="font-size: 1.3rem; color: var(--text-primary); margin-bottom: 8px;">Core Mathematics Principle</h3>
+        <p style="font-size: 1.2rem; color: var(--primary); font-weight: 700; background: var(--primary-subtle); padding: 12px 14px; border-radius: 8px; border: 1.5px dashed var(--primary-border); line-height: 1.45;">
           "${renderMathInText(slide.keyPrinciple)}"
         </p>
       ` : ''}
@@ -181,9 +181,9 @@ export function renderDoNowSlide(slide, renderBlocks) {
 
   const questions = (slide.questions || [])
     .map((q, idx) => `
-      <div style="margin-bottom: 14px; padding: 12px; background: var(--bg-muted); border-radius: 6px;">
-        <p style="font-weight: 600; font-size: 0.95rem; margin-bottom: 6px;">${idx + 1}. ${renderMathInText(q.prompt)}</p>
-        <div class="reveal-item" style="color: var(--accent-green); font-weight: 700; font-size: 0.93rem; line-height: 1.5;">
+      <div style="margin-bottom: 10px; padding: 8px 12px; background: var(--bg-muted); border-radius: 6px;">
+        <p style="font-weight: 600; font-size: 1.12rem; margin-bottom: 4px;">${idx + 1}. ${renderMathInText(q.prompt)}</p>
+        <div class="reveal-item" style="color: var(--accent-green); font-weight: 700; font-size: 1.12rem; line-height: 1.38;">
           ✔ ${renderMathInText(q.answer)}
         </div>
       </div>
@@ -195,13 +195,13 @@ export function renderDoNowSlide(slide, renderBlocks) {
     return `
       <div class="card col-half" style="display: flex; flex-direction: column;">
         <h3 class="card-title">🎡 ${renderMathInText(slide.stimulusTitle || 'Lesson Starter: Spinner Probabilities')}</h3>
-        ${slide.stimulusPrompt ? `<p style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 8px;">${renderMathInText(slide.stimulusPrompt)}</p>` : ''}
+        ${slide.stimulusPrompt ? `<p style="font-size: 1.08rem; color: var(--text-secondary); margin-bottom: 6px;">${renderMathInText(slide.stimulusPrompt)}</p>` : ''}
         ${spinnersHtml}
         ${slide.sidebarNotes ? `<div style="margin-top: auto; padding-top: 10px;">${renderBlocks(slide.sidebarNotes)}</div>` : ''}
       </div>
       <div class="card col-half">
         <h3 class="card-title">📝 Warm-up Questions</h3>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px;">Complete these in your workbook. Spacebar reveals answers.</p>
+        <p style="font-size: 0.98rem; color: var(--text-secondary); margin-bottom: 8px;">Complete these in your workbook. Spacebar reveals answers.</p>
         ${questions}
       </div>
     `;
@@ -213,7 +213,7 @@ export function renderDoNowSlide(slide, renderBlocks) {
     return `
       <div class="card col-half" style="display: flex; flex-direction: column;">
         <h3 class="card-title">📝 Warm-up Questions</h3>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px;">Consider each question before and after running the class experiment. Spacebar reveals answers.</p>
+        <p style="font-size: 0.98rem; color: var(--text-secondary); margin-bottom: 8px;">Consider each question before and after running the class experiment. Spacebar reveals answers.</p>
         ${questions}
       </div>
       <div class="card col-half" style="display: flex; flex-direction: column;">
@@ -225,14 +225,14 @@ export function renderDoNowSlide(slide, renderBlocks) {
   return `
     <div class="card col-60">
       <h3 class="card-title">Warm-up Questions</h3>
-      <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 14px;">Complete these in your workbook. Spacebar reveals answers.</p>
+      <p style="font-size: 0.98rem; color: var(--text-secondary); margin-bottom: 8px;">Complete these in your workbook. Spacebar reveals answers.</p>
       ${questions}
     </div>
     <div class="card col-40" style="display:flex; flex-direction:column; justify-content:center;">
       ${slide.sidebarNotes ? renderBlocks(slide.sidebarNotes) : `
         <div class="note-box gold">
           <h4>💡 Teacher Reminder</h4>
-          <p style="font-size: 0.9rem;">Allow 3–5 minutes for independent student attempts before revealing step answers.</p>
+          <p style="font-size: 1.05rem;">Allow 3–5 minutes for independent student attempts before revealing step answers.</p>
         </div>
       `}
     </div>
@@ -278,30 +278,107 @@ export function renderNotesSlide(slide, renderBlocks) {
   return contentHtml + columnsHtml;
 }
 
+/**
+ * Remove a leading step number marker from a step label before the automatic prefix is added.
+ * Removes only these patterns (case-insensitive with a number):
+ * "Step 3:", "Step 3 -", "Step 3 —", "Step 3.", "3.", and "3)".
+ * Does not remove "Part 1:" or any other wording.
+ *
+ * @param {string} label
+ * @returns {string}
+ */
+export function stripStepNumberPrefix(label) {
+  if (typeof label !== 'string') return '';
+  return label.replace(/^\s*(?:step\s+\d+\s*(?::|—|–|-|\.)|\d+\s*[\.\)](?!\d))\s*/i, '').trim();
+}
+
+/**
+ * Format a worked example step heading using the automatic step position number.
+ * Ensures the position number is shown once and removes duplicated step prefixes.
+ *
+ * @param {number|string} stepNum
+ * @param {string} [label]
+ * @returns {string}
+ */
+export function formatStepHeading(stepNum, label) {
+  const cleanLabel = stripStepNumberPrefix(label);
+  return cleanLabel ? `Step ${stepNum}: ${renderMathInText(cleanLabel)}` : `Step ${stepNum}:`;
+}
+
 export function renderWorkedExampleSlide(slide, renderBlocks) {
-  const steps = (slide.steps || [])
-    .map((step, idx) => `
-      <div class="reveal-item" style="margin-bottom: 14px; padding: 12px 14px; background: var(--bg-muted); border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0;">
-        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 4px;">
-          Step ${idx + 1}: ${renderMathInText(step.label || '')}
-        </h4>
-        <div style="font-size: 0.92rem; line-height: 1.5;">${renderMathInText(step.text || '')}</div>
-        ${step.latex ? renderMath(step.latex, { display: true }) : ''}
-        ${step.blocks ? renderBlocks(step.blocks) : ''}
-      </div>
-    `)
-    .join('');
+  const stepsList = slide.steps || [];
+  const hasParts = stepsList.some((s) => Boolean(s.part));
+
+  let stepsContent = '';
+
+  if (hasParts) {
+    const partsMap = new Map();
+    stepsList.forEach((step) => {
+      const partKey = step.part || 'General';
+      if (!partsMap.has(partKey)) {
+        partsMap.set(partKey, []);
+      }
+      partsMap.get(partKey).push(step);
+    });
+
+    const partsHtml = [];
+    for (const [partName, partSteps] of partsMap.entries()) {
+      const renderedPartSteps = partSteps
+        .map((step, idx) => {
+          const stepNum = step.stepNumber !== undefined ? step.stepNumber : idx + 1;
+          const labelHtml = formatStepHeading(stepNum, step.label);
+          return `
+            <div class="reveal-item" style="margin-bottom: 8px; padding: 8px 12px; background: var(--bg-muted); border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0;">
+              <h4 style="font-size: 1.12rem; font-weight: 700; color: var(--primary); margin-bottom: 3px;">
+                ${labelHtml}
+              </h4>
+              ${step.text ? `<div style="font-size: 1.12rem; line-height: 1.38;">${renderMathInText(step.text)}</div>` : ''}
+              ${step.latex ? renderMath(step.latex, { display: true }) : ''}
+              ${step.blocks ? renderBlocks(step.blocks) : ''}
+            </div>
+          `;
+        })
+        .join('');
+
+      partsHtml.push(`
+        <div class="worked-example-part-card">
+          <div class="worked-example-part-title">
+            ${renderMathInText(partName)}
+          </div>
+          ${renderedPartSteps}
+        </div>
+      `);
+    }
+    stepsContent = partsHtml.join('');
+  } else {
+    stepsContent = stepsList
+      .map((step, idx) => {
+        const stepNum = step.stepNumber !== undefined ? step.stepNumber : idx + 1;
+        const labelHtml = formatStepHeading(stepNum, step.label);
+        return `
+          <div class="reveal-item" style="margin-bottom: 8px; padding: 8px 12px; background: var(--bg-muted); border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0;">
+            <h4 style="font-size: 1.12rem; font-weight: 700; color: var(--primary); margin-bottom: 3px;">
+              ${labelHtml}
+            </h4>
+            <div style="font-size: 1.12rem; line-height: 1.38;">${renderMathInText(step.text || '')}</div>
+            ${step.latex ? renderMath(step.latex, { display: true }) : ''}
+            ${step.blocks ? renderBlocks(step.blocks) : ''}
+          </div>
+        `;
+      })
+      .join('');
+  }
 
   return `
     <div class="card col-half">
       <h3 class="card-title">Problem Statement</h3>
-      ${slide.prompt ? `<p style="font-size: 1rem; line-height: 1.5; margin-bottom: 12px;">${renderMathInText(slide.prompt)}</p>` : ''}
+      ${slide.prompt ? `<p style="font-size: 1.14rem; line-height: 1.4; margin-bottom: 8px;">${renderMathInText(slide.prompt)}</p>` : ''}
       ${slide.data ? `<div class="raw-data-strip">${escapeHtml(slide.data)}</div>` : ''}
       ${slide.leftBlocks ? renderBlocks(slide.leftBlocks) : ''}
     </div>
     <div class="card col-half">
       <h3 class="card-title">Step-by-Step Working</h3>
-      ${steps}
+      ${stepsContent}
     </div>
   `;
 }
@@ -322,7 +399,7 @@ export function renderBoardTaskSlide(slide, renderBlocks, renderBlockHtml) {
 
   // Secondary teacher guidance note box (compact styling so it does not dominate presentation area)
   const notesHtml = slide.notes ? `
-    <div class="board-task-teacher-notes" style="margin-top: 10px;">
+    <div class="board-task-teacher-notes" style="margin-top: 8px;">
       ${renderBlocks(slide.notes)}
     </div>
   ` : '';
@@ -333,7 +410,7 @@ export function renderBoardTaskSlide(slide, renderBlocks, renderBlockHtml) {
     return `
       <div class="card col-full" style="display: flex; flex-direction: column;">
         ${actionBannerHtml}
-        ${slide.prompt ? `<p style="font-size: 1.02rem; line-height: 1.5; margin-bottom: 10px; color: var(--text-primary); font-weight: 500;">${renderMathInText(slide.prompt)}</p>` : ''}
+        ${slide.prompt ? `<p style="font-size: 1.14rem; line-height: 1.4; margin-bottom: 8px; color: var(--text-primary); font-weight: 500;">${renderMathInText(slide.prompt)}</p>` : ''}
         ${slide.data ? `<div class="raw-data-strip">${escapeHtml(slide.data)}</div>` : ''}
         ${slide.workspaceContent ? renderBlocks(slide.workspaceContent) : (slide.content ? renderBlocks(slide.content) : '')}
         ${slide.leftBlocks ? renderBlocks(slide.leftBlocks) : ''}
@@ -346,7 +423,7 @@ export function renderBoardTaskSlide(slide, renderBlocks, renderBlockHtml) {
   // (e.g. Table on left, Measured-Bar / Solution on right)
   const leftContent = `
     ${actionBannerHtml}
-    ${slide.prompt ? `<p style="font-size: 0.98rem; line-height: 1.45; margin-bottom: 8px; color: var(--text-primary); font-weight: 500;">${renderMathInText(slide.prompt)}</p>` : ''}
+    ${slide.prompt ? `<p style="font-size: 1.12rem; line-height: 1.38; margin-bottom: 6px; color: var(--text-primary); font-weight: 500;">${renderMathInText(slide.prompt)}</p>` : ''}
     ${slide.data ? `<div class="raw-data-strip">${escapeHtml(slide.data)}</div>` : ''}
     ${slide.workspaceContent ? renderBlocks(slide.workspaceContent) : (slide.content ? renderBlocks(slide.content) : '')}
     ${slide.leftBlocks ? renderBlocks(slide.leftBlocks) : ''}
@@ -425,8 +502,8 @@ export function renderPracticeSlide(slide, renderBlocks) {
     .map((task) => `
       <div class="card col-third" style="display:flex; flex-direction:column; justify-content:space-between;">
         <div>
-          <h3 class="card-title" style="font-size: 1.05rem;">${renderMathInText(task.title || '')}</h3>
-          ${task.prompt ? `<p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 8px;">${renderMathInText(task.prompt)}</p>` : ''}
+          <h3 class="card-title" style="font-size: 1.18rem; margin-bottom: 6px;">${renderMathInText(task.title || '')}</h3>
+          ${task.prompt ? `<p style="font-size: 1.12rem; line-height: 1.38; margin-bottom: 6px;">${renderMathInText(task.prompt)}</p>` : ''}
           ${task.blocks ? renderBlocks(task.blocks) : ''}
         </div>
         ${task.solution && (Array.isArray(task.solution) ? task.solution.length > 0 : Boolean(task.solution)) ? `
@@ -450,10 +527,10 @@ export function renderExitTicketSlide(slide, renderBlocks) {
       <div class="card col-half" style="display:flex; flex-direction:column; justify-content:space-between;">
         <div>
           <h3 class="card-title">Question ${idx + 1}</h3>
-          <p style="font-size: 1rem; line-height: 1.5; margin-bottom: 12px;">${renderMathInText(promptText)}</p>
+          <p style="font-size: 1.14rem; line-height: 1.4; margin-bottom: 8px;">${renderMathInText(promptText)}</p>
           ${q.blocks ? renderBlocks(q.blocks) : ''}
         </div>
-        <div class="reveal-item solution-container" style="margin-top: 14px;">
+        <div class="reveal-item solution-container" style="margin-top: 8px; padding: 6px 10px;">
           <span class="solution-badge">✔ Answer</span>
           ${q.solution ? renderBlocks(q.solution) : ''}
         </div>
@@ -468,23 +545,23 @@ export function renderExitTicketSlide(slide, renderBlocks) {
 export function renderSummarySlide(slide) {
   const takeaways = (slide.takeaways || [])
     .map((t) => `
-      <li style="margin-bottom: 10px; font-size: 1.05rem; line-height: 1.6;">
+      <li style="margin-bottom: 8px; font-size: 1.16rem; line-height: 1.4;">
         ${renderMathInText(t)}
       </li>
     `)
     .join('');
 
   return `
-    <div class="card col-60" style="display:flex; flex-direction:column; justify-content:center; padding: 30px;">
-      <h3 style="font-size: 1.35rem; color: var(--primary); margin-bottom: 16px;">Core Concepts Checklist</h3>
+    <div class="card col-60" style="display:flex; flex-direction:column; justify-content:center; padding: 20px;">
+      <h3 style="font-size: 1.35rem; color: var(--primary); margin-bottom: 14px;">Core Concepts Checklist</h3>
       <ul style="margin-left: 24px; color: var(--text-primary);">
         ${takeaways}
       </ul>
     </div>
-    <div class="card col-40" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding: 24px;">
-      <div style="font-size: 3rem; margin-bottom: 12px;">🎓 ⭐</div>
-      <h3 style="font-size: 1.25rem; margin-bottom: 8px;">Well done, Year 7!</h3>
-      <p style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 16px;">Pack up workbooks, pens and calculators.</p>
+    <div class="card col-40" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding: 20px;">
+      <div style="font-size: 2.8rem; margin-bottom: 10px;">🎓 ⭐</div>
+      <h3 style="font-size: 1.3rem; margin-bottom: 6px;">Well done, Year 7!</h3>
+      <p style="font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 14px;">Pack up workbooks, pens and calculators.</p>
       <button class="btn btn-primary btn-summary-return" type="button">
         Return to Lesson Library
       </button>

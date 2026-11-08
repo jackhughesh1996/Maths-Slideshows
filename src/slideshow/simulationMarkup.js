@@ -2,6 +2,11 @@
  * Simulation widget markup and dispatch; runtime initialisation stays in simulations.js.
  */
 import { renderMathInText, escapeHtml } from './math.js';
+import { renderFractionConversionSimulation } from './fractionConversionSimulation.js';
+import {
+  renderFractionDivisionSimulation,
+  renderReciprocalSimulation
+} from './fractionDivisionSimulation.js';
 import { normalizeSimulationType } from './blockTypes.js';
 import {
   renderCoinClassSimulation,
@@ -35,6 +40,12 @@ export function renderSimulationBlock(block, revealClass = '') {
       return renderCumulativeCoinSimulation(block, revealClass);
     case 'basketball':
       return renderBasketballSimulation(block, revealClass);
+    case 'fraction-conversion':
+      return renderFractionConversionSimulation(block, revealClass);
+    case 'fraction-division':
+      return renderFractionDivisionSimulation(block, revealClass);
+    case 'reciprocal-explorer':
+      return renderReciprocalSimulation(block, revealClass);
     default:
       return '';
   }

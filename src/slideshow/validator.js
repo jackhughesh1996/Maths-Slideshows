@@ -7,6 +7,8 @@
 
 import { auditLessonMath, formatMathIssue } from './mathExpressions.js';
 import { graphConsistency } from './graphConsistency.js';
+import { parseFractionModelData } from './fractionModelUtils.js';
+import { parseFractionOfSetData } from './fractionSetUtils.js';
 
 import {
   SUPPORTED_SLIDE_TYPES,
@@ -53,10 +55,35 @@ const TYPE_ALLOWED_BLOCK_PROPS = {
   'measured-bar': new Set(['categories', 'items', 'totalLength', 'totalLengthCm', 'unit', 'total', 'showTicks', 'showMinorTicks', 'progressive', 'title', 'subtitle', 'check', 'checkMath', 'checkSum', 'checkLabel']),
   'board-workspace': new Set(['content']),
   'solution': new Set(['title', 'text', 'latex', 'blocks']),
-  'simulation': new Set(['simType', 'title', 'subtitle', 'expected', 'items', 'spinners', 'defaultClassSize', 'trialsPerStudent', 'totalSpins', 'badge'])
+  'simulation': new Set([
+    'simType', 'title', 'subtitle', 'expected', 'items', 'spinners',
+    'defaultClassSize', 'trialsPerStudent', 'totalSpins', 'badge',
+    'mode', 'numerator', 'denominator', 'whole', 'part',
+    'dividendWhole', 'dividendNum', 'dividendDen', 'divisorNum', 'divisorDen',
+    'divWhole', 'divNum', 'divDen', 'dvrNum', 'dvrDen',
+    'shares', 'preset', 'presets', 'example', 'showControls', 'showCalculation'
+  ]),
+  'fraction-area-model': new Set([
+    'fraction1', 'fraction2', 'fractions', 'firstFraction', 'secondFraction',
+    'rows', 'cols', 'columns', 'selectedRows', 'selectedCols',
+    'title', 'subtitle', 'caption', 'showEquation', 'showLabels',
+    'startStep', 'progressive', 'width', 'height', 'size',
+    'ariaLabel', 'equation', 'colColor', 'rowColor', 'overlapColor'
+  ]),
+  'fraction-of-set': new Set([
+    'total', 'numerator', 'denominator', 'fraction', 'unit',
+    'title', 'subtitle', 'equation', 'showEquation', 'startStep', 'progressive', 'ariaLabel'
+  ]),
+  'mixed-numeral-area-model': new Set([
+    'wWhole', 'wNum', 'wDen', 'hWhole', 'hNum', 'hDen',
+    'title', 'subtitle', 'equation', 'showEquation', 'startStep', 'progressive', 'ariaLabel'
+  ])
 };
 
 TYPE_ALLOWED_BLOCK_PROPS['divided-bar'] = TYPE_ALLOWED_BLOCK_PROPS['measured-bar'];
+TYPE_ALLOWED_BLOCK_PROPS['fraction-model'] = TYPE_ALLOWED_BLOCK_PROPS['fraction-area-model'];
+TYPE_ALLOWED_BLOCK_PROPS['fraction-set'] = TYPE_ALLOWED_BLOCK_PROPS['fraction-of-set'];
+TYPE_ALLOWED_BLOCK_PROPS['mixed-area-model'] = TYPE_ALLOWED_BLOCK_PROPS['mixed-numeral-area-model'];
 
 const COMMON_SLIDE_PROPS = new Set([
   'type',
@@ -515,7 +542,7 @@ export function validateLesson(lesson, options = {}) {
       if (!Array.isArray(slide.steps) || slide.steps.length === 0) {
         errors.push(`${slidePrefix}: Worked example slide requires a non-empty 'steps' array.`);
       } else {
-        const allowedStepProps = new Set(['label', 'text', 'latex', 'blocks']);
+        const allowedStepProps = new Set(['label', 'text', 'latex', 'blocks', 'part', 'stepNumber']);
         slide.steps.forEach((step, stIdx) => {
           if (!step || typeof step !== 'object') {
             errors.push(`${slidePrefix} Step [${stIdx}]: Step must be an object.`);
@@ -525,6 +552,12 @@ export function validateLesson(lesson, options = {}) {
             if (!allowedStepProps.has(p)) {
               errors.push(`${slidePrefix} Step [${stIdx}]: Unknown property '${p}' in worked example step.`);
             }
+          }
+          if (step.part !== undefined && typeof step.part !== 'string') {
+            errors.push(`${slidePrefix} Step [${stIdx}]: 'part' must be a string.`);
+          }
+          if (step.stepNumber !== undefined && typeof step.stepNumber !== 'number' && typeof step.stepNumber !== 'string') {
+            errors.push(`${slidePrefix} Step [${stIdx}]: 'stepNumber' must be a number or string.`);
           }
           if (step.label !== undefined && typeof step.label !== 'string') {
             errors.push(`${slidePrefix} Step [${stIdx}]: 'label' must be a string.`);
@@ -793,9 +826,13 @@ export function validateLesson(lesson, options = {}) {
           (block.reveal === true || block.revealStep !== undefined)) {
         errors.push(`${blockDesc}: Progressive ${bType} cannot combine outer 'reveal'/'revealStep' with internal reveal steps.`);
       }
+      if ((canonicalBType === 'fraction-area-model' || canonicalBType === 'fraction-of-set' || canonicalBType === 'mixed-numeral-area-model') && block.progressive !== false &&
+          (block.reveal === true || block.revealStep !== undefined)) {
+        errors.push(`${blockDesc}: Progressive ${bType} cannot combine outer 'reveal'/'revealStep' with internal reveal steps.`);
+      }
 
       if (slide.separateSolutions === true && /^slide\.solution\[\d+\]/.test(path)) {
-        if (canonicalBType === 'sector-construction' || (canonicalBType === 'measured-bar' && block.progressive === true)) {
+        if (canonicalBType === 'sector-construction' || (canonicalBType === 'measured-bar' && block.progressive === true) || ((canonicalBType === 'fraction-area-model' || canonicalBType === 'fraction-of-set' || canonicalBType === 'mixed-numeral-area-model') && block.progressive !== false)) {
           errors.push(`${blockDesc}: An internally progressive graph cannot be nested in a separate solution reveal; place it in workspaceContent or rightBlocks instead.`);
         }
         if (/^slide\.solution\[\d+\]$/.test(path) && block.reveal === false) {
@@ -1289,6 +1326,74 @@ export function validateLesson(lesson, options = {}) {
         }
       }
 
+      // Fraction-area-model validation
+      if (canonicalBType === 'fraction-area-model') {
+        const parsed = parseFractionModelData(block);
+        if (!parsed.valid) {
+          for (const err of parsed.errors) {
+            errors.push(`${blockDesc}: ${err}`);
+          }
+        }
+        for (const prop of ['title', 'subtitle', 'caption', 'ariaLabel', 'equation', 'colColor', 'rowColor', 'overlapColor']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'string') {
+            errors.push(`${blockDesc}: '${prop}' must be a string.`);
+          }
+        }
+        for (const prop of ['showEquation', 'showLabels', 'progressive']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'boolean') {
+            errors.push(`${blockDesc}: '${prop}' must be a boolean.`);
+          }
+        }
+        for (const prop of ['width', 'height', 'size']) {
+          if (block[prop] !== undefined && (typeof block[prop] !== 'number' || !Number.isFinite(block[prop]) || block[prop] <= 0)) {
+            errors.push(`${blockDesc}: '${prop}' must be a positive number.`);
+          }
+        }
+        if (block.startStep !== undefined && (typeof block.startStep !== 'number' || !Number.isInteger(block.startStep) || block.startStep < 1)) {
+          errors.push(`${blockDesc}: 'startStep' must be a positive integer.`);
+        }
+      }
+
+      // Fraction-of-set validation
+      if (canonicalBType === 'fraction-of-set') {
+        const parsed = parseFractionOfSetData(block);
+        if (!parsed.valid) {
+          for (const err of parsed.errors) {
+            errors.push(`${blockDesc}: ${err}`);
+          }
+        }
+        for (const prop of ['title', 'subtitle', 'unit', 'ariaLabel', 'equation']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'string') {
+            errors.push(`${blockDesc}: '${prop}' must be a string.`);
+          }
+        }
+        for (const prop of ['showEquation', 'progressive']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'boolean') {
+            errors.push(`${blockDesc}: '${prop}' must be a boolean.`);
+          }
+        }
+        if (block.startStep !== undefined && (typeof block.startStep !== 'number' || !Number.isInteger(block.startStep) || block.startStep < 1)) {
+          errors.push(`${blockDesc}: 'startStep' must be a positive integer.`);
+        }
+      }
+
+      // Mixed-numeral-area-model validation
+      if (canonicalBType === 'mixed-numeral-area-model') {
+        for (const prop of ['title', 'subtitle', 'ariaLabel', 'equation']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'string') {
+            errors.push(`${blockDesc}: '${prop}' must be a string.`);
+          }
+        }
+        for (const prop of ['showEquation', 'progressive']) {
+          if (block[prop] !== undefined && typeof block[prop] !== 'boolean') {
+            errors.push(`${blockDesc}: '${prop}' must be a boolean.`);
+          }
+        }
+        if (block.startStep !== undefined && (typeof block.startStep !== 'number' || !Number.isInteger(block.startStep) || block.startStep < 1)) {
+          errors.push(`${blockDesc}: 'startStep' must be a positive integer.`);
+        }
+      }
+
       // Board-workspace validation
       if (canonicalBType === 'board-workspace') {
         if (block.content !== undefined && !Array.isArray(block.content)) {
@@ -1350,6 +1455,49 @@ export function validateLesson(lesson, options = {}) {
           }
         };
 
+        if (simType === 'fraction-conversion') {
+          const modes = ['build', 'regroup', 'number-line'];
+          const denominators = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
+          const d = block.denominator === undefined ? 4 : block.denominator;
+          if (!modes.includes(block.mode)) {
+            nestedError(`${path}.mode`, `Must be one of ${modes.join(', ')}.`);
+          }
+          if (!denominators.includes(d)) {
+            nestedError(`${path}.denominator`, `Must be one of ${denominators.join(', ')}.`);
+          }
+          const integers = ['numerator', 'denominator', 'whole', 'part'];
+          for (const prop of integers) {
+            if (block[prop] !== undefined && !Number.isInteger(block[prop])) {
+              nestedError(`${path}.${prop}`, 'Must be an integer.');
+            }
+          }
+          if (Number.isInteger(d) && denominators.includes(d)) {
+            if (block.whole !== undefined && (block.whole < 0 || block.whole > 5)) {
+              nestedError(`${path}.whole`, 'Must be between 0 and 5.');
+            }
+            if (block.part !== undefined && (block.part < 0 || block.part >= d)) {
+              nestedError(`${path}.part`, 'Must be at least 0 and less than the denominator.');
+            }
+            if (block.numerator !== undefined && (block.numerator < (block.mode === 'regroup' ? d : 0) || block.numerator > 6 * d - 1)) {
+              nestedError(`${path}.numerator`, 'Numerator must be non-negative (at least the denominator in regroup mode) and at most 6 wholes.');
+            }
+          }
+          if (block.mode === 'build' && block.numerator !== undefined) {
+            nestedError(`${path}.numerator`, 'Build mode uses whole and part, not numerator.');
+          }
+          if (block.mode !== 'build' && (block.whole !== undefined || block.part !== undefined)) {
+            nestedError(path, 'Only build mode accepts whole and part.');
+          }
+        }
+        if (simType === 'fraction-division') {
+          const modes = ['fit', 'sharing'];
+          if (block.mode !== undefined && !modes.includes(block.mode)) {
+            nestedError(`${path}.mode`, `Must be one of ${modes.join(', ')}.`);
+          }
+        }
+        if (simType === 'reciprocal-explorer') {
+          // Reciprocal explorer accepts title, subtitle, presets, etc.
+        }
         if (simType === 'spinner') {
           if (!Array.isArray(block.spinners) || block.spinners.length === 0) {
             nestedError(`${path}.spinners`, 'Spinner simulation requires a non-empty array.');

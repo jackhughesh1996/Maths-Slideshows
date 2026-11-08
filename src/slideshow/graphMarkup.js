@@ -446,10 +446,14 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
   const fractions = items.map((item, index) => item.fraction !== undefined ? item.fraction : weights[index] / total);
 
   // SVG Geometry for clean projector and laptop scaling
-  const svgWidth = 740;
   const paddingLeft = 32;
-  const paddingRight = 44;
-  const barWidth = svgWidth - paddingLeft - paddingRight; // 664px
+  const barWidth = 664;
+  // Extra right-hand padding for longer unit names (e.g. "twelfths", "sevenths") so they are not clipped by SVG boundary
+  const unitTextLen = String(unit || '').length;
+  const paddingRight = block.paddingRight !== undefined
+    ? Number(block.paddingRight)
+    : (unitTextLen > 2 ? Math.max(44, 26 + unitTextLen * 8) : 44);
+  const svgWidth = paddingLeft + barWidth + paddingRight; // 740px for "cm", ~786px for longer units
   const barY = 28;
   const barHeight = 52;
   const axisY = barY + barHeight; // 80px
@@ -462,13 +466,13 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
       const x = paddingLeft + (i / totalLength) * barWidth;
       // Major integer tick extending below the bar
       ticks.push(`
-        <line x1="${x.toFixed(2)}" y1="${axisY}" x2="${x.toFixed(2)}" y2="${axisY + 12}"
+        <line class="measured-bar-tick-line" data-tick="${i}" x1="${x.toFixed(2)}" y1="${axisY}" x2="${x.toFixed(2)}" y2="${axisY + 12}"
               stroke="#334155" stroke-width="2" />
       `);
 
       // Integer number label below tick
       ticks.push(`
-        <text x="${x.toFixed(2)}" y="${axisY + 26}" text-anchor="middle"
+        <text class="measured-bar-tick-text" data-tick="${i}" x="${x.toFixed(2)}" y="${axisY + 26}" text-anchor="middle"
               font-family="var(--font-mono, monospace)" font-size="13" font-weight="700" fill="#1e293b">
           ${i}
         </text>
@@ -544,9 +548,9 @@ export function renderMeasuredBarBlock(block, revealClass = '') {
 
     // Boundary vertical division line and coordinate callout above bar
     const boundaryMarker = `
-      <line x1="${boundaryX}" y1="${barY}" x2="${boundaryX}" y2="${axisY + 14}"
+      <line class="measured-bar-boundary-line" x1="${boundaryX}" y1="${barY}" x2="${boundaryX}" y2="${axisY + 14}"
             stroke="#0f172a" stroke-width="2.5" />
-      <text x="${boundaryX}" y="${barY - 8}" text-anchor="middle"
+      <text class="measured-bar-boundary-text" x="${boundaryX}" y="${barY - 8}" text-anchor="middle"
             font-family="var(--font-mono, monospace)" font-size="11" font-weight="700" fill="#0f172a">
         ${accumFormatted} ${escapeHtml(unit)}
       </text>

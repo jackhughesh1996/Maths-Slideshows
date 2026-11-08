@@ -47,10 +47,28 @@ let simSource = await readFile(simUrl, 'utf8');
 simSource = simSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
 const simMod = asModule(simSource);
 
+const convMathUrl = new URL('../src/slideshow/fractionConversionMath.js', import.meta.url).href;
+const convUrl = new URL('../src/slideshow/fractionConversionSimulation.js', import.meta.url);
+let convSource = await readFile(convUrl, 'utf8');
+convSource = convSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './fractionConversionMath.js'", `from ${JSON.stringify(convMathUrl)}`);
+const convMod = asModule(convSource);
+
+const divMathUrl = new URL('../src/slideshow/fractionDivisionMath.js', import.meta.url).href;
+const divUrl = new URL('../src/slideshow/fractionDivisionSimulation.js', import.meta.url);
+let divSource = await readFile(divUrl, 'utf8');
+divSource = divSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './fractionDivisionMath.js'", `from ${JSON.stringify(divMathUrl)}`);
+const divMod = asModule(divSource);
+
 let markupSource = await readFile(new URL('../src/slideshow/simulationMarkup.js', import.meta.url), 'utf8');
 markupSource = markupSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
   .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
+  .replace("from './fractionConversionSimulation.js'", `from ${JSON.stringify(convMod)}`)
+  .replace("from './fractionDivisionSimulation.js'", `from ${JSON.stringify(divMod)}`)
   .replace("from './experimentalSimulations.js'", `from ${JSON.stringify(simMod)}`);
 const markupMod = asModule(markupSource);
 const { renderSimulationBlock } = await import(markupMod);
@@ -64,6 +82,24 @@ let slideMarkupSource = await readFile(new URL('../src/slideshow/slideMarkup.js'
 slideMarkupSource = slideMarkupSource.replace("from './math.js'", `from ${JSON.stringify(mathMod)}`);
 const slideMarkupMod = asModule(slideMarkupSource);
 
+let fractionAreaSource = await readFile(new URL('../src/slideshow/fractionAreaMarkup.js', import.meta.url), 'utf8');
+fractionAreaSource = fractionAreaSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './fractionModelUtils.js'", `from ${JSON.stringify(new URL('../src/slideshow/fractionModelUtils.js', import.meta.url).href)}`);
+const fractionAreaMod = asModule(fractionAreaSource);
+
+let fractionSetSource = await readFile(new URL('../src/slideshow/fractionSetMarkup.js', import.meta.url), 'utf8');
+fractionSetSource = fractionSetSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './fractionSetUtils.js'", `from ${JSON.stringify(new URL('../src/slideshow/fractionSetUtils.js', import.meta.url).href)}`);
+const fractionSetMod = asModule(fractionSetSource);
+
+let mixedAreaSource = await readFile(new URL('../src/slideshow/mixedAreaMarkup.js', import.meta.url), 'utf8');
+mixedAreaSource = mixedAreaSource
+  .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
+  .replace("from './fractionModelUtils.js'", `from ${JSON.stringify(new URL('../src/slideshow/fractionModelUtils.js', import.meta.url).href)}`);
+const mixedAreaMod = asModule(mixedAreaSource);
+
 let rendererSource = await readFile(new URL('../src/slideshow/renderer.js', import.meta.url), 'utf8');
 rendererSource = rendererSource
   .replace("from './math.js'", `from ${JSON.stringify(mathMod)}`)
@@ -71,6 +107,9 @@ rendererSource = rendererSource
   .replace("from './blockTypes.js'", `from ${JSON.stringify(blockTypesUrl)}`)
   .replace("from './simulationMarkup.js'", `from ${JSON.stringify(markupMod)}`)
   .replace("from './graphMarkup.js'", `from ${JSON.stringify(graphMod)}`)
+  .replace("from './fractionAreaMarkup.js'", `from ${JSON.stringify(fractionAreaMod)}`)
+  .replace("from './fractionSetMarkup.js'", `from ${JSON.stringify(fractionSetMod)}`)
+  .replace("from './mixedAreaMarkup.js'", `from ${JSON.stringify(mixedAreaMod)}`)
   .replace("from './slideMarkup.js'", `from ${JSON.stringify(slideMarkupMod)}`);
 
 const { renderSlide, renderBlock, renderBlocks } = await import(asModule(rendererSource));

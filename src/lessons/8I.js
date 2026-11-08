@@ -339,7 +339,7 @@ export default {
           solution: [
             {
               type: "paragraph",
-              text: "Favourable outcomes = $\\text{Red} + \\text{Blue} = 18 + 14 = 32$ (or $40 - 8 = 32$).\n$$\\text{Pr}(\\text{not Green}) = \\frac{32}{40} = \\frac{4}{5} = 0.80 = 80\\%$$"
+              text: "Favourable outcomes = $\\text{Red} + \\text{Blue} = 18 + 14 = 32$ (or $40 - 8 = 32$).\n$$\\begin{aligned} \\text{Pr}(\\text{not Green}) &= \\frac{32}{40} = \\frac{4}{5} \\\\ &= 0.80 = 80\\% \\end{aligned}$$"
             }
           ]
         },
@@ -349,7 +349,7 @@ export default {
           solution: [
             {
               type: "paragraph",
-              text: "$$\\text{Expected Blue} = \\text{Pr}(\\text{Blue}) \\times n = \\frac{14}{40} \\times 200 = 0.35 \\times 200 = 70$$\n**Why actual results differ:** 70 is an expected prediction, not a guarantee. Random variation occurs in any chance experiment, so future spins might produce 68, 72, or 65 blues."
+              text: "$$\\begin{aligned} \\text{Expected Blue} &= \\text{Pr}(\\text{Blue}) \\times n \\\\ &= \\frac{14}{40} \\times 200 = 0.35 \\times 200 = 70 \\end{aligned}$$\n**Why actual results differ:** 70 is an expected prediction, not a guarantee. Random variation occurs in any chance experiment, so future spins might produce 68, 72, or 65 blues."
             }
           ]
         }
@@ -607,7 +607,7 @@ export default {
           solution: [
             {
               type: "paragraph",
-              text: "$$\\text{Expected Heads} = 0.56 \\times 200 = \\frac{28}{50} \\times 200 = 28 \\times 4 = 112 \\text{ heads}$$"
+              text: "$$\\begin{aligned} \\text{Expected Heads} &= 0.56 \\times 200 \\\\ &= \\frac{28}{50} \\times 200 = 28 \\times 4 = 112 \\text{ heads} \\end{aligned}$$"
             }
           ]
         },

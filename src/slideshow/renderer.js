@@ -9,6 +9,9 @@ import { renderMath, renderMathInText, escapeHtml } from './math.js';
 import { normalizeSlideType } from './slideTypes.js';
 import { normalizeBlockType } from './blockTypes.js';
 import { renderSimulationBlock } from './simulationMarkup.js';
+import { renderFractionAreaModelBlock } from './fractionAreaMarkup.js';
+import { renderFractionOfSetBlock } from './fractionSetMarkup.js';
+import { renderMixedNumeralAreaModelBlock } from './mixedAreaMarkup.js';
 import {
   renderStemAndLeafBlock,
   renderSectorGraphBlock,
@@ -40,7 +43,10 @@ export function renderBlock(block) {
   // These containers have their own reveal semantics (or no outer element).
   // Keep their existing handling separate from ordinary block reveals.
   const canonicalType = normalizeBlockType(block);
-  const supportsNumberedReveal = !['sector-construction', 'board-workspace'].includes(canonicalType);
+  const isProgressive = canonicalType === 'sector-construction' ||
+    ((canonicalType === 'fraction-area-model' || canonicalType === 'fraction-of-set' || canonicalType === 'mixed-numeral-area-model') && block.progressive !== false) ||
+    (canonicalType === 'measured-bar' && block.progressive === true);
+  const supportsNumberedReveal = !['board-workspace'].includes(canonicalType) && !isProgressive;
   const hasStep = supportsNumberedReveal && block.revealStep !== undefined;
   const revealClass = block.reveal || hasStep || (canonicalType === 'solution' && block.reveal === undefined)
     ? 'reveal-item' : '';
@@ -183,6 +189,18 @@ function renderBlockHtml(block, revealClass) {
 
     case 'simulation': {
       return renderSimulationBlock(block, revealClass);
+    }
+
+    case 'fraction-area-model': {
+      return renderFractionAreaModelBlock(block, revealClass);
+    }
+
+    case 'fraction-of-set': {
+      return renderFractionOfSetBlock(block, revealClass);
+    }
+
+    case 'mixed-numeral-area-model': {
+      return renderMixedNumeralAreaModelBlock(block, revealClass);
     }
 
     default:

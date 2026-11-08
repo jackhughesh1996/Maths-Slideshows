@@ -9,6 +9,7 @@ import { BoardDrawing } from './drawing.js';
 import { ClassroomTimer } from './timer.js';
 import { openTeacherTools } from '../tools/teacherToolsModal.js';
 import { initSimulations } from './simulations.js';
+import { fitMath } from './mathFit.js';
 
 export class SlideshowEngine {
   /**
@@ -272,6 +273,25 @@ export class SlideshowEngine {
     };
 
     window.addEventListener('keydown', this.handleKeyDown);
+
+    // Auto-fit equations on window resize
+    this.handleResize = () => {
+      fitMath(this.slideElements[this.currentSlideIndex]);
+    };
+    window.addEventListener('resize', this.handleResize);
+
+    // Auto-fit once web fonts are fully loaded
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        fitMath(this.slideElements[this.currentSlideIndex]);
+      });
+      if (typeof document.fonts.addEventListener === 'function') {
+        this.handleFontsLoaded = () => {
+          fitMath(this.slideElements[this.currentSlideIndex]);
+        };
+        document.fonts.addEventListener('loadingdone', this.handleFontsLoaded);
+      }
+    }
   }
 
   destroy() {
@@ -279,6 +299,12 @@ export class SlideshowEngine {
     this.destroyed = true;
 
     window.removeEventListener('keydown', this.handleKeyDown);
+    if (this.handleResize) {
+      window.removeEventListener('resize', this.handleResize);
+    }
+    if (this.handleFontsLoaded && typeof document !== 'undefined' && document.fonts?.removeEventListener) {
+      document.fonts.removeEventListener('loadingdone', this.handleFontsLoaded);
+    }
 
     if (this.timer) {
       this.timer.destroy();
@@ -456,6 +482,8 @@ export class SlideshowEngine {
       // Reveal next hidden item on this slide
       this.revealState[this.currentSlideIndex]++;
       this.applyRevealState();
+      fitMath(this.slideElements[this.currentSlideIndex]);
+      requestAnimationFrame(() => fitMath(this.slideElements[this.currentSlideIndex]));
     } else if (this.currentSlideIndex < this.totalSlides - 1) {
       // Advance to next slide
       this.goToSlide(this.currentSlideIndex + 1);
@@ -469,6 +497,8 @@ export class SlideshowEngine {
       // Step back one reveal on this slide
       this.revealState[this.currentSlideIndex]--;
       this.applyRevealState();
+      fitMath(this.slideElements[this.currentSlideIndex]);
+      requestAnimationFrame(() => fitMath(this.slideElements[this.currentSlideIndex]));
     } else if (this.currentSlideIndex > 0) {
       // Return to previous slide (its revealed state remains intact!)
       this.goToSlide(this.currentSlideIndex - 1);
@@ -516,6 +546,10 @@ export class SlideshowEngine {
 
     // 6. Development-only slide overflow audit check
     this.checkSlideOverflow(this.currentSlideIndex);
+
+    // 7. Auto-fit displayed equations to slide cards
+    fitMath(nextSlideEl);
+    requestAnimationFrame(() => fitMath(nextSlideEl));
   }
 
   /**

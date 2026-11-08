@@ -1,3 +1,5 @@
+Historical snapshot from 2026-10-15; the lesson list and results below are out of date.
+
 # Refactor Baseline & Validation Results
 
 Initial assessment and command execution results recorded prior to commencing reliability improvements.

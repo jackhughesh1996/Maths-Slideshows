@@ -8,6 +8,11 @@
  */
 
 import { escapeHtml } from './math.js';
+import { FractionConversionSimulation } from './fractionConversionSimulation.js';
+import {
+  FractionDivisionSimulation,
+  ReciprocalSimulation
+} from './fractionDivisionSimulation.js';
 import {
   CoinClassSimulation,
   CoinSummaryWidget,
@@ -56,6 +61,12 @@ export function initSimulations(container) {
       widgetInstance = new CumulativeCoinSimulation(el, config);
     } else if (simType === 'basketball') {
       widgetInstance = new BasketballSimulation(el, config);
+    } else if (simType === 'fraction-conversion') {
+      widgetInstance = new FractionConversionSimulation(el, config);
+    } else if (simType === 'fraction-division') {
+      widgetInstance = new FractionDivisionSimulation(el, config);
+    } else if (simType === 'reciprocal-explorer') {
+      widgetInstance = new ReciprocalSimulation(el, config);
     }
 
     if (widgetInstance) {

@@ -2,7 +2,7 @@
 import katex from 'katex';
 
 export const MATH_OPTIONS = Object.freeze({ output: 'html', strict: false });
-const RAW_FIELDS = new Set(['latex', 'checkMath', 'calculation', 'fraction']);
+const RAW_FIELDS = new Set(['latex', 'checkMath', 'calculation', 'fraction', 'equation']);
 // Deliberately mathematical commands: ordinary backslash text and file paths
 // are not LaTeX merely because they contain a backslash.
 const MATH_COMMAND = /\\(?:frac|dfrac|tfrac|sqrt|times|cdot|div|circ|theta|alpha|beta|gamma|pi|sum|prod|int|infty|sin|cos|tan|log|ln|exp|le|ge|ne|leq|geq|neq|approx|implies|rightarrow|left|right|begin|end|binom|overline|underline|underbrace|overbrace|dot|ddot|pm|in|notin|cup|cap|subset|ldots|cdots|displaystyle|operatorname|mathbf|mathrm|mathbb|mathcal|text|Pr)\b/g;

@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { inspectVisibility, settleSlide } from './helpers/visibility.mjs';
+import { expectNoRawMath, findRawMath } from './helpers/rawMath.mjs';
 import { test as base, expect } from '@playwright/test';
 import { lessonManifest } from '../../src/lessons/manifest.js';
 
@@ -91,6 +92,7 @@ for (const { id, lesson } of lessons) {
       await expect(activeSlide).toHaveAttribute('data-slide-index', String(index));
       await expect(page.locator('#presSlideCounter')).toHaveText(`${index + 1} / ${lesson.slides.length}`);
       await expectNoMathErrors(page);
+      await expectNoRawMath(page, id, index + 1);
 
       // Advance through real reveal controls, without changing engine state or
       // assuming a fixed number of steps. The DOM count bounds the loop even
@@ -117,6 +119,7 @@ for (const { id, lesson } of lessons) {
         await expect(activeSlide.locator('.reveal-item.is-revealed')).toHaveCount(revealedCount);
         await expect(activeSlide).toHaveAttribute('data-slide-index', String(index));
         await expectNoMathErrors(page);
+        await expectNoRawMath(page, id, index + 1);
       }
       if (index < lesson.slides.length - 1) {
         await expect(next).toHaveAttribute('aria-label', 'Advance to next slide');
@@ -488,6 +491,54 @@ test('visibility detector separates hidden reveals, clipping and live history sc
   }
 });
 
+test('synthetic proof: Check 2 flags math-clipped in narrow containers and ignores wide containers', async ({ page }) => {
+  const fixture = async (cardWidth) => page.setContent(`
+    <style>
+      * { box-sizing: border-box; } body { margin: 0; font: 16px/20px sans-serif; }
+      .pres-stage, .pres-slide-viewport { width: 800px; height: 400px; overflow: hidden; }
+      .card { width: ${cardWidth}px; overflow-x: auto; }
+      .katex-display { overflow-x: auto; margin: 0; }
+      .katex { display: inline-block; width: 450px; white-space: nowrap; }
+    </style>
+    <main class="pres-stage"><div class="pres-slide-viewport"><section class="slide active">
+      <div class="card">
+        <div class="katex-display">
+          <span class="katex"><span class="katex-html"><span class="base">Pr(Consonant) = 1 - Pr(Vowel) = 1 - 4/11 = 7/11 = 0.636</span></span></span>
+        </div>
+      </div>
+    </section></div></main>`);
+
+  // (a) Narrow container (200px) with 450px KaTeX formula must be flagged math-clipped
+  await fixture(200);
+  const narrowFindings = await inspectVisibility(page);
+  expect(narrowFindings).toEqual([expect.objectContaining({ kind: 'math-clipped', axis: 'x' })]);
+
+  // (a) Wide container (600px) with 450px KaTeX formula must NOT be flagged math-clipped
+  await fixture(600);
+  const wideFindings = await inspectVisibility(page);
+  expect(wideFindings.filter((f) => f.kind === 'math-clipped')).toEqual([]);
+});
+
+test('synthetic proof: Check 1 flags raw dollar-sign math and ignores rendered KaTeX', async ({ page }) => {
+  const fixture = async (content) => page.setContent(`
+    <style>
+      * { box-sizing: border-box; } body { margin: 0; font: 16px/20px sans-serif; }
+      .pres-stage, .pres-slide-viewport { width: 800px; height: 400px; overflow: hidden; }
+    </style>
+    <main class="pres-stage"><div class="pres-slide-viewport"><section class="slide active">
+      <div class="card">${content}</div>
+    </section></div></main>`);
+
+  // (b) Text node containing a dollar-sign formula must be caught by Check 1
+  await fixture('<p>Solve the linear equation $2x + 5 = 15$ for x.</p>');
+  const rawFindings = await findRawMath(page);
+  expect(rawFindings).toContain('$2x + 5 = 15$');
+
+  // (b) Text node containing only rendered KaTeX (with .katex-mathml) must NOT be caught
+  await fixture('<p>Solve the linear equation <span class="katex"><span class="katex-mathml"><math><annotation encoding="application/x-tex">2x + 5 = 15</annotation></math></span><span class="katex-html" aria-hidden="true"><span class="base">2x + 5 = 15</span></span></span> for x.</p>');
+  const renderedFindings = await findRawMath(page);
+  expect(renderedFindings).toEqual([]);
+});
 
 test('8G: single-task practice retains the counter simulation and answer reveals', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -525,3 +576,62 @@ test('short-projector simulation layouts keep controls, live results and explana
   await settleSlide(page);
   expect(await inspectVisibility(page)).toEqual([]);
 });
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }]) {
+  test(`3G Slide 5: fraction area model reveal stages and reverse navigation at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await openLessonAt(page, '3G', 4);
+    await expect(activeSlide(page).locator('.slide-header h2')).toHaveText('What Is One-Third of Two-Thirds?');
+
+    const fam = activeSlide(page).locator('.fraction-area-model-container');
+    await expect(fam).toBeVisible();
+    await expect(fam.locator('.area-model-cell')).toHaveCount(9);
+    await expect(fam.locator('.model-column-shading')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-row-shading')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-overlap-shading')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.fraction-model-equation')).not.toHaveClass(/is-revealed/);
+
+    // Step 1: Reveal columns (2/3 in blue)
+    await page.keyboard.press('Space');
+    await expect(fam.locator('.model-column-shading')).toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-row-shading')).not.toHaveClass(/is-revealed/);
+
+    // Step 2: Reveal rows (1/3 in green)
+    await page.keyboard.press('ArrowRight');
+    await expect(fam.locator('.model-column-shading')).toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-row-shading')).toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-overlap-shading')).not.toHaveClass(/is-revealed/);
+
+    // Step 3: Highlight overlap (2 cells in purple)
+    await page.keyboard.press('Space');
+    await expect(fam.locator('.model-overlap-shading')).toHaveClass(/is-revealed/);
+    await expect(fam.locator('.overlap-cell')).toHaveCount(2);
+    await expect(fam.locator('.fraction-model-equation')).not.toHaveClass(/is-revealed/);
+
+    // Step 4: Reveal equation and answer (2/9)
+    await page.keyboard.press('ArrowRight');
+    await expect(fam.locator('.fraction-model-equation')).toHaveClass(/is-revealed/);
+    await expect(fam.locator('.fraction-model-equation')).toHaveAttribute('data-product', '2/9');
+    await expect(fam.locator('.fraction-model-equation')).toContainText('2 of 9');
+
+    // Test reverse navigation (Step 4 -> Step 3 -> Step 2 -> Step 1 -> Step 0)
+    await page.keyboard.press('ArrowLeft');
+    await expect(fam.locator('.fraction-model-equation')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-overlap-shading')).toHaveClass(/is-revealed/);
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(fam.locator('.model-overlap-shading')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-row-shading')).toHaveClass(/is-revealed/);
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(fam.locator('.model-row-shading')).not.toHaveClass(/is-revealed/);
+    await expect(fam.locator('.model-column-shading')).toHaveClass(/is-revealed/);
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(fam.locator('.model-column-shading')).not.toHaveClass(/is-revealed/);
+
+    await settleSlide(page);
+    expect(await inspectVisibility(page)).toEqual([]);
+  });
+}
+

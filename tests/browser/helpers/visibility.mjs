@@ -90,6 +90,22 @@ export async function inspectVisibility(page) {
     for (const el of slide.querySelectorAll('svg, img, canvas, input, select, button, .katex-html .base')) {
       if (visible(el)) inspect(el, el.getBoundingClientRect());
     }
+    // Check 2: clipped equations and tables
+    const allElements = slide ? [slide, ...slide.querySelectorAll('*')] : [];
+    for (const el of allElements) {
+      if (!visible(el)) continue;
+      const css = style(el);
+      if (!['auto', 'hidden', 'scroll'].includes(css.overflowX)) continue;
+      const excess = el.scrollWidth - el.clientWidth;
+      if (excess > 2) {
+        const mathOrTable = (el.matches('.katex, table') && visible(el))
+          ? el
+          : [...el.querySelectorAll('.katex, table')].find((target) => visible(target));
+        if (mathOrTable) {
+          record(mathOrTable, el, 'math-clipped', 'x', excess);
+        }
+      }
+    }
     return [...findings.values()];
   });
 }

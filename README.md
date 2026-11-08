@@ -179,7 +179,7 @@ Safe file cleanup automatically purges obsolete launchers from both folders when
 
 ## 5. Architecture Overview
 
-Abbreviated tree; `manifest.js` currently registers lessons 8E–8I.
+Abbreviated tree; `src/lessons/manifest.js` is the source of truth for all registered lessons (currently 3C, 3E, 3G, 3H, 8B, 8E, 8F, 8G, 8H, 8I).
 
 ```text
 maths-slideshows/
@@ -199,10 +199,8 @@ maths-slideshows/
 │   ├── generate-lesson-pages.js         # Generates static HTML pages in lessons/<id>/index.html
 │   └── generate-launchers.js            # Auto-generates student HTML launchers with cleanup & validation
 ├── lessons/
-│   ├── 8E/
-│   │   └── index.html                   # Static entry page for Lesson 8E
-│   └── 8F/
-│       └── index.html                   # Static entry page for Lesson 8F
+│   └── <id>/
+│       └── index.html                   # Static entry page for each registered lesson
 ├── public/
 │   └── downloads/                       # Local dev copies of student launchers
 └── src/
@@ -225,27 +223,22 @@ maths-slideshows/
     │   ├── timer.js                     # Classroom practice timer
     │   └── math.js                      # KaTeX math rendering helper
     └── lessons/
-        ├── manifest.js                  # Master lesson registry (ID and file path pairs)
+        ├── manifest.js                  # Master lesson registry and source of truth
         ├── grouping.js                  # Hierarchical course & chapter grouping logic
-        ├── 8E.js                        # Stem-and-Leaf Plots lesson
-        └── 8F.js                        # Sector Graphs & Divided Bar Graphs lesson
+        └── <id>.js                      # Structured declarative lesson data modules
 ```
 
 ---
 
 ## 6. Adding New Lessons
 
-To add a new lesson (e.g. `8J: Frequency Tables and Range`; 8E–8I already exist):
+To add a new lesson (e.g. `8J: Frequency Tables and Range`; check `src/lessons/manifest.js` as the source of truth for currently registered lessons):
 
 1. Create `src/lessons/8J.js` and export your lesson configuration object as the default export.
 2. Register the lesson in `src/lessons/manifest.js`:
    ```javascript
    export const lessonManifest = [
-     { id: '8E', path: './8E.js' },
-     { id: '8F', path: './8F.js' },
-     { id: '8G', path: './8G.js' },
-     { id: '8H', path: './8H.js' },
-     { id: '8I', path: './8I.js' },
+     // ... existing entries from manifest.js
      { id: '8J', path: './8J.js' }, // New lesson entry; retain existing entries
    ];
    ```
@@ -253,4 +246,4 @@ To add a new lesson (e.g. `8J: Frequency Tables and Range`; 8E–8I already exis
 
 Commit the authored lesson and manifest, excluding generated pages, catalogues and launchers. Submit changes on a branch for CI checks before merging.
 
-See the comprehensive [LESSON_AUTHORING.md](LESSON_AUTHORING.md) guide for complete slide schemas, visual components, math formulas, and authoring rules. You never need to touch the slideshow engine.
+See the comprehensive [LESSON_AUTHORING.md](LESSON_AUTHORING.md) guide for complete slide schemas, visual components, math formulas, and authoring rules. Ordinary lessons need no engine changes, but adding a new block or simulation type does (see the checklist in LESSON_AUTHORING.md).

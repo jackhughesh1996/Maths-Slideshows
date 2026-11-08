@@ -1,6 +1,6 @@
 # Lesson Authoring Guide
 
-This guide explains how a teacher or an AI model can author new Year 7 Mathematics lessons in the static multi-page slideshow architecture without modifying any slideshow engine code.
+This guide explains how a teacher or an AI model can author new Year 7 Mathematics lessons in the static multi-page slideshow architecture. Ordinary lessons need no engine changes, but adding a new block or simulation type does.
 
 Start with [adding a lesson](#1-quick-start-3-step-process-to-add-a-lesson), then choose [slide types](#5-supported-slide-types) and [blocks](#6-supported-content-blocks). Use [reveals](#8-progressive-reveals--solutions), [mathematics](#7-text-formatting--katex-mathematics-syntax), and the [verification commands](#11-local-development-testing--verification) when refining the lesson.
 
@@ -441,9 +441,12 @@ Any slide supporting `blocks` or `content` can use these reusable building block
 | `sector-graph` | Non-empty `items` with `label` and `amount` or numeric `fraction`; optional `color`, `angle`; block `total`, `size`, `radius` | Mathematically accurate static SVG pie chart |
 | `sector-construction` | Non-empty `categories` (or `items`); `label`, at least one of `value`, `amount`, `fraction`, `angle`; optional `calculation`, `color`; see graph rules below | Step-by-step animated sector graph construction paired with synchronized calculation table |
 | `divided-bar` / `measured-bar` | Non-empty `categories` (or `items`); `label`, at least one of numeric `value`, `amount`, `length`, `fraction`; scale/check options below | Proportional SVG divided bar with ruler-style ticks, number labels, and progressive boundary reveals |
+| `fraction-area-model` / `fraction-model` | Two proper fractions via `fraction1`/`fraction2`, `fractions: [f1, f2]`, or rows/cols | 2D overlapping area grid visualising fraction multiplication |
+| `fraction-of-set` / `fraction-set` | Required `total`, `numerator`, `denominator` (or `fraction`); optional `unit` | Discrete counter visual grouping model for fraction of a quantity |
+| `mixed-numeral-area-model` / `mixed-area-model` | Optional `wWhole`, `wNum`, `wDen`, `hWhole`, `hNum`, `hDen` | Proportional 4-quadrant area model for mixed numeral multiplication |
 | `solution` | Optional `title`, `text`, raw `latex`, nested `blocks` | Reveals automatically by default; see section 8 |
 | `board-workspace` | Optional `content: Block[]` | Legacy transparent container: renders only its children, no drawing frame |
-| `simulation` | Required `simType`; type-specific data below | Interactive probability simulations |
+| `simulation` | Required `simType`; type-specific data below | Interactive probability and fraction simulations |
 
 Use arrays of blocks in each supported container. Only `solution.blocks`, `board-workspace.content` and `sector-construction.notes` are nested block containers within blocks; do not add arbitrary `blocks` / `content` fields to other block types. Shared accepted block metadata is `reveal`, `revealStep`, `badgeTitle`, `className`, subject to the restrictions in section 8. `badgeTitle` labels separate board-task answers; `className` is used on tables, not a general styling API.
 
@@ -458,6 +461,9 @@ Use a `simulation` block with one of these `simType` values:
 - `spinner` (alias `spinners`): non-empty `spinners`, each with non-empty `sectors`. Spinner metadata accepts strings `id`, `name`, `badge`, `expected`. Each sector requires non-empty `label` and finite numeric `angle`; optional `color`, `term` are strings.
 - `counter-bag` (alias `bag-draw`) and `pen-draw` (alias `box-draw`): non-empty `items`, each with non-empty `label`, integer `count >= 0`, optional string `color`, `term`. Zero counts are valid.
 - `coin-class`, `coin-summary`, `coin-cumulative`, `basketball`: do not require spinner or bag data. See lesson 8I for existing configurations.
+- `fraction-conversion`: requires `mode: 'build'|'regroup'|'number-line'` and integer `denominator` (one of 2, 3, 4, 5, 6, 7, 8, 9, 10, 12).
+- `fraction-division` (alias `fraction-divide`): interactive division; optional `mode: 'fit'|'sharing'`.
+- `reciprocal-explorer` (alias `reciprocal`): interactive flip-card demonstrator showing that a number and its reciprocal multiply to 1.
 
 Shared optional fields: string `title`, `subtitle`, `expected`, `badge`; finite numeric `totalSpins`; finite positive `defaultClassSize`, `trialsPerStudent`. Unknown nested properties fail validation. Use the renderer’s existing controls; do not invent configuration fields. Lesson 8G supplies spinner and draw examples. The static `do-now.spinners` stimulus is a different schema (`id`, `name`, `sectors`, `needleAngle`, `sectorsDescription`), not a simulation block. Its optional `sectors` array contains objects with optional finite `startDeg` / `endDeg` and string `label`, `color`, `textColor`. Omitted sectors/angles use renderer defaults; full-circle and wraparound angles are supported. `needleAngle` must be finite; `id`, `name` and `sectorsDescription` must be strings when supplied.
 
@@ -558,6 +564,125 @@ For guided and independent practice where students draw a divided bar with a phy
 
 * **Initial State**: Displays the blank outlined ruler bar with ticks and numbers 0 to $N$ cm.
 * **Progressive Sequence**: Each category segment fills from left to right with its boundary marker and label, followed by the length check equation.
+
+### Fraction Area Model (`fraction-area-model` / `fraction-model`)
+Visualises fraction multiplication as an overlapping 2D grid.
+- **Required**: Two proper fractions ($1 \le \text{den} \le 12$, $0 \le \text{num} \le \text{den}$) via `fraction1` and `fraction2` (or `firstFraction`/`secondFraction`, `fractions: [f1, f2]`, or `rows`/`cols`/`selectedRows`/`selectedCols`). Accepts strings `"n/d"`, arrays `[n, d]`, or `{ numerator, denominator }`.
+- **Optional**: `title`, `subtitle`, `caption`, `ariaLabel`, `equation` (strings); `showEquation`, `showLabels`, `progressive` (booleans, default true); `startStep` (positive integer); `width`, `height`, `size` (positive numbers); `rowColor`, `colColor`, `overlapColor` (strings).
+- **Example from `src/lessons/3G.js`**:
+```javascript
+{
+  type: "fraction-area-model",
+  fraction1: "1/3",
+  fraction2: "2/3"
+}
+```
+
+### Fraction of a Set (`fraction-of-set` / `fraction-set`)
+Visualises finding a fraction of a discrete quantity using grouped counters.
+- **Required**:
+  - `total`: Positive integer ($1 \le \text{total} \le 100$), must be divisible by `denominator` (`total % denominator === 0`).
+  - Fraction: Integer `numerator` and `denominator` ($1 \le \text{den} \le 12$, $0 \le \text{num} \le \text{den}$), or `fraction: "n/d"`.
+- **Optional**: `title`, `subtitle`, `unit` (string, e.g. `"counters"`, default `"items"`), `equation`, `ariaLabel` (strings); `showEquation`, `progressive` (booleans, default true); `startStep` (positive integer).
+- **Example from `src/lessons/3G.js`**:
+```javascript
+{
+  type: "fraction-of-set",
+  total: 30,
+  numerator: 2,
+  denominator: 5,
+  title: "Visual Grouping (2/5 of 30)",
+  unit: "counters"
+}
+```
+
+### Mixed Numeral Area Model (`mixed-numeral-area-model` / `mixed-area-model`)
+Proportional 4-quadrant area model illustrating mixed numeral multiplication and why multiplying parts separately fails.
+- **Required**: None (defaults to $2\frac{1}{3} \times 1\frac{2}{5}$).
+- **Optional**: `wWhole`, `wNum`, `wDen` (horizontal whole, numerator, denominator); `hWhole`, `hNum`, `hDen` (vertical whole, numerator, denominator); `title`, `subtitle`, `equation`, `ariaLabel` (strings); `showEquation`, `progressive` (booleans, default true); `startStep` (positive integer).
+- **Example from `src/lessons/3G.js`**:
+```javascript
+{
+  type: "mixed-numeral-area-model",
+  title: "Area Model: 2 1/3 × 1 2/5"
+}
+```
+
+### Fraction Conversion Explorer (`simulation` with `simType: "fraction-conversion"`)
+Interactive tool to build mixed numerals, regroup improper fractions, or locate them on a 0–6 number line.
+- **Required**:
+  - `simType: "fraction-conversion"`
+  - `mode`: `"build"` (uses `whole: 0–5`, `part: 0..<d`, requires `denominator`), `"regroup"` (uses `numerator: d..6d-1`, requires `denominator`), or `"number-line"` (uses `numerator: 0..6d-1`, requires `denominator`).
+  - `denominator`: Integer, one of `2, 3, 4, 5, 6, 7, 8, 9, 10, 12` (default: 4).
+- **Optional**: `title`, `subtitle` (strings). Note: `whole`/`part` are valid only in `"build"` mode; `numerator` is forbidden in `"build"` mode.
+- **Example from `src/lessons/3C.js`**:
+```javascript
+{
+  type: "simulation",
+  simType: "fraction-conversion",
+  mode: "build",
+  denominator: 4,
+  whole: 2,
+  part: 3,
+  title: "Fraction Conversion Explorer · Build mode",
+  subtitle: "Each bar is one whole; every bar has the same size. How many quarters are shaded altogether?"
+}
+```
+
+### Fraction Division Explorer (`simulation` with `simType: "fraction-division"`)
+Interactive visualizer for quotative ("how many fit?") and partitive ("equal sharing") fraction division.
+- **Required**: `simType: "fraction-division"`
+- **Optional**:
+  - `mode`: `"fit"` (default) or `"sharing"`.
+  - In `"fit"` mode: `divWhole` / `dividendWhole` (default 0), `divNum` / `dividendNum` (default 1), `divDen` / `dividendDen` (default 2), `dvrNum` / `divisorNum` (default 1), `dvrDen` / `divisorDen` (default 4).
+  - In `"sharing"` mode: `divNum` / `dividendNum` (default 5), `divDen` / `dividendDen` (default 8), `shares` (default 3).
+  - `title`, `subtitle` (strings).
+- **Example from `src/lessons/3H.js`**:
+```javascript
+{
+  type: "simulation",
+  simType: "fraction-division",
+  mode: "fit",
+  title: "Fraction Division Explorer · Counting Groups",
+  subtitle: "Explore 1/2 ÷ 1/4 = 2, 3/4 ÷ 1/2 = 1 1/2, and 3 ÷ 1/2 = 6"
+}
+```
+
+### Reciprocal Demonstrator (`simulation` with `simType: "reciprocal-explorer"`)
+Interactive flip-card demonstrator that reveals reciprocals of fractions, wholes, and mixed numerals and verifies their product is 1.
+- **Required**: `simType: "reciprocal-explorer"`
+- **Optional**: `title` (string, default: `"Reciprocal Demonstrator · Flip & Verify"`), `subtitle` (string, default: `"Select a number, reveal its reciprocal, and verify their product is 1."`).
+- **Example from `src/lessons/3H.js`**:
+```javascript
+{
+  type: "simulation",
+  simType: "reciprocal-explorer",
+  title: "Reciprocal Demonstrator",
+  subtitle: "Select a number, reveal its reciprocal, and verify the product is 1"
+}
+```
+
+### Adding a New Block or Simulation Type
+
+Ordinary lessons need no slideshow engine changes, but adding a brand new block or simulation type requires modifying the engine. Every new type must be wired into the following files:
+
+1. **`src/slideshow/blockTypes.js`**: Register canonical type and any aliases in `CANONICAL_BLOCK_TYPES` / `CANONICAL_SIMULATION_TYPES` and `BLOCK_TYPE_ALIASES` / `SIMULATION_TYPE_ALIASES`.
+2. **Markup Generator**:
+   - For a block type: Create `src/slideshow/<name>Markup.js` (or add to an existing markup module) exporting the rendering function.
+   - For a simulation: Create or extend the simulation component (e.g. `src/slideshow/<name>Simulation.js`) and add a case to the `switch (simType)` in `src/slideshow/simulationMarkup.js` (`renderSimulationBlock`).
+3. **Renderer Dispatch**:
+   - For block types: Import the renderer and dispatch in `src/slideshow/renderer.js` (`renderBlock`) or `src/slideshow/slideMarkup.js`.
+4. **Client-Side Simulation Initialisation**:
+   - For interactive simulations: Add a branch to the `if-chain` in `initSimulations()` in `src/slideshow/simulations.js` to instantiate the widget controller class.
+5. **Schema & Semantic Validator (`src/slideshow/validator.js`)**:
+   - Register allowed property names in `TYPE_ALLOWED_BLOCK_PROPS`.
+   - Add semantic validations (required fields, value ranges, type constraints) in `validateLesson()`.
+6. **Styling (`src/styles/presentation.css`)**:
+   - Add presentation CSS classes for layouts, SVG containers, controls, and reveal states.
+7. **Documentation (`LESSON_AUTHORING.md`)**:
+   - Document schema, required/optional fields, and authoring examples.
+8. **Automated Tests (`scripts/test-*.mjs`)**:
+   - Add regression tests covering valid and invalid inputs, schema validation, markup rendering, and state lifecycle.
 
 ---
 
