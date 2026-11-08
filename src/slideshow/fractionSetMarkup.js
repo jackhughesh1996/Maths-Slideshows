@@ -8,8 +8,6 @@
 import { renderMath, renderMathInText, escapeHtml } from './math.js';
 import { parseFractionOfSetData } from './fractionSetUtils.js';
 
-let setInstanceCounter = 0;
-
 /**
  * High-contrast accessible color palette for fraction-of-set diagrams.
  */
@@ -44,9 +42,6 @@ export function renderFractionOfSetBlock(block, revealClass = '') {
 
   const { total, numerator, denominator, groups, itemsPerGroup, highlightedCount } = parsed;
   const unit = block.unit || 'counters';
-
-  setInstanceCounter++;
-  const uniqueId = `fos-${setInstanceCounter}`;
 
   // Progressive reveal stages
   const isProgressive = block.progressive !== false;
