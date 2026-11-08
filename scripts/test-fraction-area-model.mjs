@@ -10,16 +10,12 @@ import { test } from 'node:test';
 
 import {
   CANONICAL_BLOCK_TYPES,
-  BLOCK_TYPE_ALIASES,
   isSupportedBlockType,
   normalizeBlockType
 } from '../src/slideshow/blockTypes.js';
 
 import { validateLesson } from '../src/slideshow/validator.js';
 import {
-  parseFraction,
-  parseFractionModelData,
-  gcd,
   MAX_FRACTION_DENOMINATOR
 } from '../src/slideshow/fractionModelUtils.js';
 

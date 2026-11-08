@@ -341,8 +341,6 @@ export function renderReciprocalSimulation(block, revealClass = '') {
   const title = block.title || 'Reciprocal Demonstrator · Flip & Verify';
   const subtitle = block.subtitle || 'Select a number, reveal its reciprocal, and verify their product is 1.';
 
-  const defaultPreset = RECIPROCAL_PRESETS[0];
-
   const presetsHtml = `
     <div class="sim-presets-bar">
       <span class="sim-presets-label">Select Number:</span>
