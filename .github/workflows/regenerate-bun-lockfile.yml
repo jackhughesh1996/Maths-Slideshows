@@ -1,0 +1,28 @@
+name: Regenerate Bun lockfile (temporary)
+on:
+  push:
+    branches:
+      - fix/bun-lockfile-20261109
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - name: Generate lockfile and verify frozen install
+        run: |
+          bun install
+          bun ci
+      - name: Commit lockfile only
+        run: |
+          if ! git diff --quiet -- bun.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add bun.lock
+            git commit -m "fix: synchronize Bun lockfile with package.json"
+            git push
+          fi
